@@ -1,0 +1,1 @@
+CWCore is core plugin for Cubic
