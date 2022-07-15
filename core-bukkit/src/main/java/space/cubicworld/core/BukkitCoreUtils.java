@@ -19,22 +19,17 @@ public class BukkitCoreUtils {
                     .valueOf(color.toString().toUpperCase(Locale.ROOT))
                     .toString();
         }
-        StringBuilder hexBuilder = new StringBuilder();
-        for (char c : color.asHexString().toCharArray()) {
+        StringBuilder hexBuilder = new StringBuilder()
+                .append(ChatColor.COLOR_CHAR)
+                .append('x');
+        for (char c : String.format("%06x", color.value()).toCharArray()) {
             hexBuilder.append(ChatColor.COLOR_CHAR).append(c);
         }
         return hexBuilder.toString();
     }
 
-    public TextColor getColorNamed(String color) {
-        if (color == null) return NamedTextColor.WHITE;
-        TextColor textColor = NamedTextColor.NAMES.value(color.toLowerCase(Locale.ROOT));
-        if (textColor != null) return textColor;
-        return TextColor.fromCSSHexString(color);
-    }
-
     public void internalPlayerKick(Player player) {
-        if (!player.isOnline()) return;
+        if (player == null || !player.isOnline()) return;
         player.kick(Component
                 .text("Internal error happened. Connect administrator")
                 .color(NamedTextColor.RED)

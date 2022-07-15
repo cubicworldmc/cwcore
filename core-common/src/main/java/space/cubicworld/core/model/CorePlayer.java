@@ -1,8 +1,9 @@
-package space.cubicworld.core;
+package space.cubicworld.core.model;
 
 import lombok.Builder;
 import lombok.Data;
 import net.kyori.adventure.text.format.TextColor;
+import space.cubicworld.core.CoreDataValue;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

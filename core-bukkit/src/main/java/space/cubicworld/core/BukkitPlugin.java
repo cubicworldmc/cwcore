@@ -2,15 +2,9 @@ package space.cubicworld.core;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import space.cubicworld.core.database.DatabaseModule;
 import space.cubicworld.core.repository.CorePlayerRepository;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class BukkitPlugin extends JavaPlugin {
@@ -20,7 +14,7 @@ public class BukkitPlugin extends JavaPlugin {
 
     private DatabaseModule databaseModule;
     private CorePlayerRepository playerRepository;
-    private final Map<UUID, CorePlayer> onlinePlayers = new ConcurrentHashMap<>();
+    private BukkitPlayerLoader playerLoader;
 
     @Override
     @SneakyThrows
@@ -36,7 +30,8 @@ public class BukkitPlugin extends JavaPlugin {
                 getResource("hikari.properties")
         );
         playerRepository = new CorePlayerRepository(databaseModule);
-        getServer().getPluginManager().registerEvents(new BukkitPlayerLoader(), this);
+        playerLoader = new BukkitPlayerLoader();
+        getServer().getPluginManager().registerEvents(playerLoader, this);
         getServer().getMessenger().registerIncomingPluginChannel(
                 this, BukkitPlayerUpdater.PLAYER_UPDATE_CHANNEL, new BukkitPlayerUpdater());
         new CorePapiExpansion().register();
@@ -45,10 +40,6 @@ public class BukkitPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (databaseModule != null) databaseModule.close();
-    }
-
-    public Optional<CorePlayer> getOptionalPlayer(UUID uuid) {
-        return Optional.ofNullable(getOnlinePlayers().get(uuid));
     }
 
 }

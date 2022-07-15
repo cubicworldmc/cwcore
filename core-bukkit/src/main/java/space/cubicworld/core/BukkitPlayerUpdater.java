@@ -3,11 +3,10 @@ package space.cubicworld.core;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
+import space.cubicworld.core.model.CorePlayer;
 import space.cubicworld.core.parser.CoreSerializer;
-import space.cubicworld.core.util.Pair;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 public class BukkitPlayerUpdater implements PluginMessageListener {
 
@@ -19,9 +18,12 @@ public class BukkitPlayerUpdater implements PluginMessageListener {
         if (!channel.equals(PLAYER_UPDATE_CHANNEL)) return;
         CorePlayer corePlayer = BukkitPlugin
                 .getInstance()
-                .getOptionalPlayer(player.getUniqueId())
+                .getPlayerLoader().get(player.getUniqueId())
                 .orElse(null);
-        if (corePlayer == null) return;
+        if (corePlayer == null) {
+            CoreStatic.getLogger().warn("Received update for not loaded player: {}", player);
+            return;
+        }
         try {
             String messageString = new String(message, StandardCharsets.UTF_8);
             CoreSerializer.readInto(corePlayer, messageString);

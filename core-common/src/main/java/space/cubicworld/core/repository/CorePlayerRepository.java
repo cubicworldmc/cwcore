@@ -1,6 +1,6 @@
 package space.cubicworld.core.repository;
 
-import space.cubicworld.core.CorePlayer;
+import space.cubicworld.core.model.CorePlayer;
 import space.cubicworld.core.CoreDataValue;
 import space.cubicworld.core.database.DatabaseModule;
 

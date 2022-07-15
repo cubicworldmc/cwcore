@@ -11,6 +11,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import lombok.Getter;
 import org.slf4j.Logger;
 import space.cubicworld.core.command.ColorCommand;
+import space.cubicworld.core.command.WorldColorCommand;
 import space.cubicworld.core.database.DatabaseModule;
 import space.cubicworld.core.listener.VelocityPlayerListener;
 import space.cubicworld.core.repository.CorePlayerRepository;
@@ -60,6 +61,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, playerUpdater);
         server.getEventManager().register(this, new VelocityPlayerListener(this));
         server.getCommandManager().register("color", new ColorCommand(this));
+        server.getCommandManager().register("wcolor", new WorldColorCommand(this));
     }
 
 }
