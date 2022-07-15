@@ -1,0 +1,5 @@
+rootProject.name = 'CWCore'
+include 'core-common'
+include 'core-bukkit'
+include 'core-velocity'
+

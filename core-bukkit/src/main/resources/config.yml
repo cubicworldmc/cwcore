@@ -1,0 +1,11 @@
+sql:
+  host: 'localhost:3306'
+  username: root
+  password: '1'
+  database: cwcore
+
+defaults:
+  global-color: gray
+  overworld-color: green
+  nether-color: red
+  end-color: light_purple

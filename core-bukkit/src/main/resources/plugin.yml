@@ -1,0 +1,7 @@
+main: space.cubicworld.core.BukkitPlugin
+name: CWCore
+version: 1.0
+api-version: 1.19
+author: Jenya705
+depend:
+  - PlaceholderAPI

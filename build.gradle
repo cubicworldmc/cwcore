@@ -1,0 +1,46 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'java'
+}
+
+group 'space.cubicworld'
+version '1.0'
+
+subprojects {
+
+    apply plugin: 'java'
+    apply plugin: 'com.github.johnrengelman.shadow'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    shadowJar {
+        if (project.hasProperty('dir')) {
+            destinationDir(new File((String) project.getProperties().get('dir')))
+        }
+    }
+
+    dependencies {
+        compileOnly 'org.jetbrains:annotations:22.0.0'
+        compileOnly 'org.projectlombok:lombok:1.18.22'
+        compileOnly 'net.kyori:adventure-api:4.8.1'
+        annotationProcessor 'org.projectlombok:lombok:1.18.22'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+        testCompileOnly 'org.projectlombok:lombok:1.18.22'
+        testAnnotationProcessor 'org.projectlombok:lombok:1.18.22'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+}
