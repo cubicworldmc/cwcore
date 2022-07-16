@@ -6,10 +6,6 @@ import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.Tag;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import space.cubicworld.core.VelocityConfig;
 import space.cubicworld.core.VelocityPlugin;
 
 import java.util.ArrayList;
@@ -38,7 +34,10 @@ public class ColorCommand implements SimpleCommand {
         }
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            player.sendMessage(plugin.getConfig().getProperty(VelocityConfig.COLOR_LIST));
+            player.sendMessage(plugin.getMessageContainer().render(
+                    plugin.getMessageContainer().getColorList(),
+                    player.getPlayerSettings().getLocale()
+            ));
             return;
         }
         Matcher patternMatcher = HEX_PATTERN.matcher(args[0]);
@@ -49,21 +48,17 @@ public class ColorCommand implements SimpleCommand {
             color = NamedTextColor.NAMES.value(args[0].toLowerCase(Locale.ROOT));
         }
         if (color == null) {
-            player.sendMessage(plugin.getConfig().getProperty(VelocityConfig.COLOR_NOT_VALID));
+            player.sendMessage(plugin.getMessageContainer().render(
+                    plugin.getMessageContainer().getColorNotValid(),
+                    player.getPlayerSettings().getLocale()
+            ));
             return;
         }
         plugin.getPlayerUpdater().update(player, "globalColor", color.value());
-        player.sendMessage(MiniMessage.miniMessage()
-                .deserialize(
-                        plugin.getConfig().getProperty(VelocityConfig.COLOR_SUCCESS),
-                        TagResolver.builder()
-                                .tag(
-                                        "color",
-                                        Tag.inserting(Component.empty().color(color))
-                                )
-                                .build()
-                )
-        );
+        player.sendMessage(plugin.getMessageContainer().render(
+                plugin.getMessageContainer().getColorSuccess(),
+                player.getPlayerSettings().getLocale()
+        ));
     }
 
     @Override

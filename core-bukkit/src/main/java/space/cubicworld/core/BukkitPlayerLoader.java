@@ -1,6 +1,8 @@
 package space.cubicworld.core;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -18,20 +20,24 @@ public class BukkitPlayerLoader extends CoreModelCaching<UUID, CorePlayer> imple
                 Bukkit.getScheduler().runTaskAsynchronously(
                         BukkitPlugin.getInstance(),
                         () -> {
+                            OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
                             try {
                                 consumer.accept(BukkitPlugin
                                         .getInstance()
                                         .getPlayerRepository()
                                         .findPlayer(playerUuid)
-                                        .orElseGet(() -> CorePlayer
-                                                .builder()
-                                                .uuid(playerUuid)
-                                                .build()
-                                        )
+                                        .orElseGet(() -> {
+                                            if (player.getName() != null) {
+                                                return CorePlayer.defaultPlayer(playerUuid, player.getName());
+                                            }
+                                            return null;
+                                        })
                                 );
                             } catch (SQLException e) {
                                 CoreStatic.getLogger().error("Failed to load user, kicking him:", e);
-                                BukkitCoreUtils.internalPlayerKick(Bukkit.getPlayer(playerUuid));
+                                BukkitCoreUtils.internalPlayerKick(
+                                        player instanceof Player onlinePlayer ? onlinePlayer : null
+                                );
                                 consumer.accept(null);
                             }
                         }

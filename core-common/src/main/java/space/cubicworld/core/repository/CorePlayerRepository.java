@@ -35,6 +35,21 @@ public class CorePlayerRepository {
         }
     }
 
+    public Optional<CorePlayer> findPlayer(String name) throws SQLException {
+        try (Connection connection = database.getConnection();
+             PreparedStatement selectStatement = connection.prepareStatement("""
+                     SELECT * FROM players WHERE name = ?
+                     """)
+        ) {
+            selectStatement.setString(1, name);
+            ResultSet resultSet = selectStatement.executeQuery();
+            if (resultSet.next()) {
+                return Optional.of(CorePlayer.fromSQL(resultSet));
+            }
+            return Optional.empty();
+        }
+    }
+
     public void updatePlayer(CorePlayer player) throws SQLException {
         try (Connection connection = database.getConnection();
              PreparedStatement upsertStatement = connection.prepareStatement("""
@@ -71,14 +86,15 @@ public class CorePlayerRepository {
         }
     }
 
-    public void insertDefault(UUID uuid) throws SQLException {
+    public void insertDefault(UUID uuid, String name) throws SQLException {
         try (Connection connection = database.getConnection();
              PreparedStatement insertDefaultStatement = connection.prepareStatement("""
-                     INSERT IGNORE INTO players (uuid_most, uuid_least) VALUES (?,?)
+                     INSERT IGNORE INTO players (uuid_most, uuid_least, name) VALUES (?,?,?)
                      """)
         ) {
             insertDefaultStatement.setLong(1, uuid.getMostSignificantBits());
             insertDefaultStatement.setLong(2, uuid.getLeastSignificantBits());
+            insertDefaultStatement.setString(3, name);
             insertDefaultStatement.executeUpdate();
         }
     }

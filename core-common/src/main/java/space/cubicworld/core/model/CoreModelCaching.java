@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class CoreModelCaching<K, V> {
 
@@ -32,8 +33,20 @@ public class CoreModelCaching<K, V> {
     private final Map<K, LoadingTask> loadingTasks = new ConcurrentHashMap<>();
     private final Cache<K, V> cachedModels;
     private final BiConsumer<K, Consumer<V>> loadingFunction;
+
+    public CoreModelCaching(Function<K, V> loadingFunction) {
+        this((key, consumer) -> consumer.accept(loadingFunction.apply(key)));
+    }
+
     public CoreModelCaching(BiConsumer<K, Consumer<V>> loadingFunction) {
-        cachedModels = CacheBuilder.newBuilder().expireAfterAccess(Duration.ofMinutes(30)).maximumSize(100).build();
+        this(loadingFunction, 100, Duration.ofMinutes(30));
+    }
+
+    public CoreModelCaching(BiConsumer<K, Consumer<V>> loadingFunction, int maximumSize, Duration expire) {
+        cachedModels = CacheBuilder.newBuilder()
+                .expireAfterAccess(expire)
+                .maximumSize(maximumSize)
+                .build();
         this.loadingFunction = loadingFunction;
     }
 
@@ -65,11 +78,9 @@ public class CoreModelCaching<K, V> {
             loadingFunction.accept(key, value -> {
                 synchronized (task.getLock()) {
                     if (task.isCancelled()) return;
-                    if (value == null) {
-                        loadingTasks.remove(key);
-                        return;
+                    if (value != null) {
+                        putValueConsumer.accept(value);
                     }
-                    putValueConsumer.accept(value);
                     loadingTasks.remove(key);
                     valueConsumer.accept(value);
                 }

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import org.bukkit.plugin.java.JavaPlugin;
 import space.cubicworld.core.database.DatabaseModule;
+import space.cubicworld.core.message.CoreMessageContainer;
 import space.cubicworld.core.repository.CorePlayerRepository;
 
 @Getter
@@ -16,11 +17,14 @@ public class BukkitPlugin extends JavaPlugin {
     private CorePlayerRepository playerRepository;
     private BukkitPlayerLoader playerLoader;
 
+    private CoreMessageContainer messageContainer;
+
     @Override
     @SneakyThrows
     public void onEnable() {
         instance = this;
         CoreStatic.setLogger(getSLF4JLogger());
+        messageContainer = new CoreMessageContainer(this::getResource);
         saveDefaultConfig();
         databaseModule = new DatabaseModule(
                 getConfig().getString("sql.host"),

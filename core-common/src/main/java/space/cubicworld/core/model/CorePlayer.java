@@ -13,6 +13,13 @@ import java.util.UUID;
 @Builder
 public class CorePlayer {
 
+    public static CorePlayer defaultPlayer(UUID uuid, String name) {
+        return CorePlayer.builder()
+                .uuid(uuid)
+                .name(name)
+                .build();
+    }
+
     public static CorePlayer fromSQL(ResultSet resultSet) throws SQLException {
         return CorePlayer
                 .builder()
@@ -24,10 +31,12 @@ public class CorePlayer {
                 .overworldColor(CoreDataValue.getColor(resultSet.getInt(4)))
                 .netherColor(CoreDataValue.getColor(resultSet.getInt(5)))
                 .endColor(CoreDataValue.getColor(resultSet.getInt(6)))
+                .name(resultSet.getString(7))
                 .build();
     }
 
     private final UUID uuid;
+    private final String name;
     private TextColor globalColor;
     private TextColor overworldColor;
     private TextColor netherColor;

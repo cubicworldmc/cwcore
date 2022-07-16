@@ -17,7 +17,7 @@ public class VelocityPlayerListener {
     public void playerJoin(PlayerChooseInitialServerEvent event) {
         try {
             plugin.getPlayerRepository()
-                    .insertDefault(event.getPlayer().getUniqueId());
+                    .insertDefault(event.getPlayer().getUniqueId(), event.getPlayer().getUsername());
         } catch (SQLException e) {
             CoreStatic.getLogger()
                     .error("Error while trying to insert default user for {}:", event.getPlayer(), e);
