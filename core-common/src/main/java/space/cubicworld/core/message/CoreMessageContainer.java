@@ -135,6 +135,12 @@ public class CoreMessageContainer {
                 );
     }
 
+    public Component playerNoPermission(){
+        return Component
+                .translatable("cwcore.command.player.nopermission")
+                .color(NamedTextColor.RED);
+    }
+
     public Component playerMarked(CorePlayer player) {
         return Component
                 .text(player.getName())
