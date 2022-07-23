@@ -3,43 +3,65 @@ package space.cubicworld.core.model;
 import lombok.Builder;
 import lombok.Data;
 import net.kyori.adventure.text.format.TextColor;
-import space.cubicworld.core.CoreDataValue;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
 @Data
 @Builder
-public class CorePlayer {
+public final class CorePlayer {
 
-    public static CorePlayer defaultPlayer(UUID uuid, String name) {
+    public static CorePlayer read(CoreResult result) throws SQLException {
         return CorePlayer.builder()
-                .uuid(uuid)
-                .name(name)
+                .uuid(new UUID(result.readRow(), result.readRow()))
+                .name(result.readRow())
+                .globalColor(CorePrimitive.toColor(result.readRow()))
+                .reputation(result.readRow())
                 .build();
     }
 
-    public static CorePlayer fromSQL(ResultSet resultSet) throws SQLException {
-        return CorePlayer
-                .builder()
-                .uuid(new UUID(
-                        resultSet.getLong(1),
-                        resultSet.getLong(2)
-                ))
-                .globalColor(CoreDataValue.getColor(resultSet.getInt(3)))
-                .overworldColor(CoreDataValue.getColor(resultSet.getInt(4)))
-                .netherColor(CoreDataValue.getColor(resultSet.getInt(5)))
-                .endColor(CoreDataValue.getColor(resultSet.getInt(6)))
-                .name(resultSet.getString(7))
+    public static CoreStatement<CorePlayer> insertStatement() {
+        return CoreStatement.<CorePlayer>builder()
+                .sql("INSERT IGNORE INTO players (uuid_most, uuid_least, name) VALUES (?, ?, ?)")
+                .parameter(player -> player.getUuid().getMostSignificantBits())
+                .parameter(player -> player.getUuid().getLeastSignificantBits())
+                .parameter(CorePlayer::getName)
+                .build();
+    }
+
+    public static CoreStatement<CorePlayer> updateStatement() {
+        return CoreStatement.<CorePlayer>builder()
+                .sql("""
+                        UPDATE players SET
+                        global_color = ?, reputation = ?, name = ?
+                        WHERE uuid_most = ? AND uuid_least = ?
+                        """)
+                .parameter(player -> CorePrimitive.toSQL(player.getGlobalColor()))
+                .parameter(CorePlayer::getReputation)
+                .parameter(CorePlayer::getName)
+                .parameter(player -> player.getUuid().getMostSignificantBits())
+                .parameter(player -> player.getUuid().getLeastSignificantBits())
+                .build();
+    }
+
+    public static CoreStatement<UUID> selectByUuidStatement() {
+        return CoreStatement.<UUID>builder()
+                .sql("SELECT * FROM players WHERE uuid_most = ? AND uuid_least = ?")
+                .parameter(UUID::getMostSignificantBits)
+                .parameter(UUID::getLeastSignificantBits)
+                .build();
+    }
+
+    public static CoreStatement<String> selectByNameStatement() {
+        return CoreStatement.<String>builder()
+                .sql("SELECT * FROM players WHERE name = ?")
+                .parameter(name -> name)
                 .build();
     }
 
     private final UUID uuid;
-    private final String name;
+    private String name;
     private TextColor globalColor;
-    private TextColor overworldColor;
-    private TextColor netherColor;
-    private TextColor endColor;
+    private int reputation;
 
 }

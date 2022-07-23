@@ -4,8 +4,10 @@ repositories {
 
 dependencies {
     implementation project(":core-common")
-    implementation 'ch.jalu:configme:1.3.0'
     implementation 'net.kyori:adventure-text-minimessage:4.11.0'
+    implementation 'ch.jalu:configme:1.3.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.3'
     compileOnly 'com.velocitypowered:velocity-api:3.0.0'
     annotationProcessor 'com.velocitypowered:velocity-api:3.0.0'
+
 }

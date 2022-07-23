@@ -1,49 +1,43 @@
 package space.cubicworld.core;
 
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.bukkit.plugin.java.JavaPlugin;
-import space.cubicworld.core.database.DatabaseModule;
-import space.cubicworld.core.message.CoreMessageContainer;
-import space.cubicworld.core.repository.CorePlayerRepository;
+import org.slf4j.Logger;
+import space.cubicworld.core.database.CoreDatabase;
 
-@Getter
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
+
 public class BukkitPlugin extends JavaPlugin {
 
-    @Getter
-    private static BukkitPlugin instance;
+    private static class CoreBukkitPlugin implements CorePlugin {
 
-    private DatabaseModule databaseModule;
-    private CorePlayerRepository playerRepository;
-    private BukkitPlayerLoader playerLoader;
+        private final BukkitPlugin plugin;
+        @Getter
+        private final Logger logger;
 
-    private CoreMessageContainer messageContainer;
+        public CoreBukkitPlugin(BukkitPlugin plugin) {
+            this.plugin = plugin;
+            logger = plugin.getSLF4JLogger();
+        }
+
+        @Override
+        public InputStream readResource(String resource) {
+            return plugin.getResource(resource);
+        }
+
+        @Override
+        public Path getDataPath() {
+            return plugin.getDataFolder().toPath();
+        }
+    }
+
+    private final CorePlugin corePlugin = new CoreBukkitPlugin(this);
+    private CoreDatabase database;
 
     @Override
-    @SneakyThrows
     public void onEnable() {
-        instance = this;
-        CoreStatic.setLogger(getSLF4JLogger());
-        messageContainer = new CoreMessageContainer(this::getResource);
-        saveDefaultConfig();
-        databaseModule = new DatabaseModule(
-                getConfig().getString("sql.host"),
-                getConfig().getString("sql.username"),
-                getConfig().getString("sql.password"),
-                getConfig().getString("sql.database"),
-                getResource("hikari.properties")
-        );
-        playerRepository = new CorePlayerRepository(databaseModule);
-        playerLoader = new BukkitPlayerLoader();
-        getServer().getPluginManager().registerEvents(playerLoader, this);
-        getServer().getMessenger().registerIncomingPluginChannel(
-                this, BukkitPlayerUpdater.PLAYER_UPDATE_CHANNEL, new BukkitPlayerUpdater());
-        new CorePapiExpansion().register();
-    }
 
-    @Override
-    public void onDisable() {
-        if (databaseModule != null) databaseModule.close();
     }
-
 }

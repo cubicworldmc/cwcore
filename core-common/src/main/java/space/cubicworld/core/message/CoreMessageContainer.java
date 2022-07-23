@@ -1,40 +1,39 @@
 package space.cubicworld.core.message;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
-import org.jetbrains.annotations.NotNull;
+import space.cubicworld.core.CorePlugin;
 import space.cubicworld.core.CoreStatic;
+import space.cubicworld.core.model.CorePlayer;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.Collection;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.PropertyResourceBundle;
+import java.util.stream.Collectors;
 
-@Getter
 public class CoreMessageContainer {
 
-    private final CoreColorContainer colorResources;
+    @Getter
+    private final TranslationRegistry registry;
 
-    public CoreMessageContainer(Function<String, InputStream> resourceReader) throws IOException {
-        TranslationRegistry registry = TranslationRegistry.create(Key.key("cwcore", "main"));
-        registry.defaultLocale(Locale.ENGLISH);
-        for (Locale locale : new Locale[]{Locale.ENGLISH, new Locale("ru")}) {
-            try (InputStream localeInputStream = resourceReader.apply(
-                    "language/%s.properties".formatted(locale.getLanguage()))
-            ) {
+    public CoreMessageContainer(CorePlugin plugin) {
+        registry = TranslationRegistry
+                .create(Key.key(CoreStatic.CWCORE_KEY, "main"));
+        registry.defaultLocale(CoreStatic.DEFAULT_LOCALE);
+        for (Locale locale : CoreStatic.LOCALES) {
+            try (InputStream localeInputStream = plugin.readResource("translation/%s.properties".formatted(locale))) {
                 if (localeInputStream == null) {
-                    CoreStatic.getLogger().warn("Translation {} is not exist", locale);
+                    plugin.getLogger().warn("Translation {} is not exist", locale);
                     continue;
                 }
                 registry.registerAll(
@@ -43,91 +42,107 @@ public class CoreMessageContainer {
                         false
                 );
             } catch (IOException e) {
-                CoreStatic.getLogger().warn("Failed to load translation for {}:", locale, e);
+                plugin.getLogger().warn("Failed to read translation {}:", locale, e);
             }
         }
         GlobalTranslator.get().addSource(registry);
-        colorResources = new CoreColorContainer(resourceReader.apply("colors.properties"));
     }
 
-    public Component render(Component message, Locale locale) {
-        return GlobalTranslator.render(message, locale);
+    public Component renderChat(Component toRender, Locale locale) {
+        return renderExternal(
+                Component.empty()
+                        .append(Component
+                                .text("[")
+                                .color(NamedTextColor.GRAY)
+                        )
+                        .append(Component
+                                .text("Cubic")
+                                .color(NamedTextColor.GREEN)
+                        )
+                        .append(Component
+                                .text("]")
+                                .color(NamedTextColor.GRAY)
+                        )
+                        .append(Component
+                                .text(":")
+                                .color(NamedTextColor.GOLD)
+                        )
+                        .append(Component.newline())
+                        .append(toRender),
+                locale
+        );
     }
 
-    @Getter(AccessLevel.PRIVATE)
-    private final Map<NamedTextColor, Component> namedColors = new ConcurrentHashMap<>();
-
-    private final Component colorList = generateColorList();
-
-    private final Component colorNotValid = Component
-            .translatable("cwcore.color.command.not-valid")
-            .color(NamedTextColor.RED);
-
-    private final Component colorSuccess = Component
-            .translatable("cwcore.color.command.success");
-
-    public @NotNull Component color(NamedTextColor color) {
-        return namedColors.computeIfAbsent(color, it -> Component.translatable("cwcore.color.%s".formatted(it)));
+    public Component renderExternal(Component toRender, Locale locale) {
+        return GlobalTranslator.render(toRender, locale);
     }
 
-    public Component worldColors(Map<String, List<TextColor>> colors) {
-        Component result = Component.empty()
+    public Component unknownCommand(String command, Collection<String> available) {
+        return Component.empty()
                 .append(Component
-                        .translatable("cwcore.wcolor.command.header")
-                        .decorate(TextDecoration.ITALIC)
-                ).append(Component.newline());
-        for (Map.Entry<String, List<TextColor>> entry : colors.entrySet()) {
-            String worldName = entry.getKey();
-            Collection<TextColor> worldColors = entry.getValue();
-            result = result.append(Component
-                    .translatable("cwcore.world.%s".formatted(worldName))
-                    .color(colorResources.getWorld(worldName))
-            ).append(Component.newline());
-            int variant = 1;
-            for (TextColor worldColor : worldColors) {
-                result = result.append(Component
-                        .translatable("cwcore.wcolor.command.variant")
-                        .args(Component
-                                .text(Integer.toString(variant))
-                        )
-                        .clickEvent(ClickEvent
-                                .runCommand("/wcolor %s %s".formatted(worldName, (variant++ - 1)))
-                        )
-                        .color(worldColor)
-                ).append(Component.space());
-            }
-            result = result.append(Component.newline());
-        }
-        return result;
+                        .translatable("cwcore.command.node.unknown")
+                        .color(NamedTextColor.RED)
+                        .args(Component.text(command))
+                )
+                .append(Component.newline())
+                .append(availableCommands(available));
     }
 
-    public Component worldColorSuccess(String world, TextColor color) {
+    public Component availableCommands(Collection<String> available) {
+        return Component.empty()
+                .append(Component.translatable("cwcore.command.node.available"))
+                .append(Component.newline())
+                .append(Component.join(
+                        Component.newline(),
+                        available
+                                .stream()
+                                .map(command -> Component.empty()
+                                        .append(Component
+                                                .text("-")
+                                                .color(NamedTextColor.GRAY)
+                                        )
+                                        .append(Component.space())
+                                        .append(Component
+                                                .text(command)
+                                                .color(NamedTextColor.GOLD)
+                                        )
+                                )
+                                .collect(Collectors.toList())
+                ));
+    }
+
+    public Component unknownPlayer(String nickname) {
         return Component
-                .translatable("cwcore.wcolor.command.success")
-                .args(Component.text(world))
-                .color(color);
+                .translatable("cwcore.player.unknown")
+                .color(NamedTextColor.RED)
+                .args(Component.text(nickname));
     }
 
-    private Component generateColorList() {
-        Component result = Component.empty()
-                .append(Component
-                        .translatable("cwcore.color.command.header")
-                        .decorate(TextDecoration.ITALIC)
+    public Component providePlayer() {
+        return Component
+                .translatable("cwcore.player.provide")
+                .color(NamedTextColor.RED);
+    }
+
+    public Component seeReputation(Component name, int reputation) {
+        return Component
+                .translatable("cwcore.command.rep.see")
+                .args(
+                        name,
+                        Component
+                                .text(Integer.toString(reputation))
+                                .color(NamedTextColor.GOLD)
                 );
-        int counter = 0;
-        for (NamedTextColor color : NamedTextColor.NAMES.values()) {
-            result = result.append(color(color)
-                    .color(color)
-                    .clickEvent(ClickEvent.runCommand("/color %s".formatted(color.toString())))
-                    .hoverEvent(Component
-                            .translatable("cwcore.color.command.hover")
-                            .args(color(color))
-                    )
-            );
-            if (counter++ % 4 == 0) result = result.append(Component.newline());
-        }
-        if (counter % 4 != 0) result = result.append(Component.newline());
-        return result.append(Component.translatable("cwcore.color.command.footer"));
+    }
+
+    public Component playerMarked(CorePlayer player) {
+        return Component
+                .text(player.getName())
+                .color(Objects.requireNonNullElse(player.getGlobalColor(), NamedTextColor.GOLD))
+                .hoverEvent(HoverEvent.showEntity(
+                        Key.key("minecraft", "player"),
+                        player.getUuid()
+                ));
     }
 
 }
