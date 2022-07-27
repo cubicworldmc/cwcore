@@ -24,16 +24,15 @@ public class CWCoreCommand implements SimpleCommand {
         if (args.length == 0) return; // TODO print possible next argument
         try {
             switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "rep":
+                case "rep" -> {
                     if (!invocation.source().hasPermission("cwcore.admin.rep")) return;
                     // TODO print this scheme
                     // ... <nickname> <+|add|-|sub|=|set> <value>
                     if (args.length != 4) return;
                     String operation = args[2];
                     int value = Integer.parseInt(args[3]);
-                    Optional<CorePlayer> optionalPlayer = plugin.getPlayerNameReference().get(args[1]);
-                    if (optionalPlayer.isPresent()) {
-                        CorePlayer player = optionalPlayer.get();
+                    CorePlayer player = plugin.getCache().loadPlayer(args[1]);
+                    if (player != null) {
                         switch (operation.toLowerCase(Locale.ROOT)) {
                             case "+", "add" -> player.setReputation(player.getReputation() + value);
                             case "-", "sub" -> player.setReputation(player.getReputation() - value);
@@ -45,6 +44,16 @@ public class CWCoreCommand implements SimpleCommand {
                         // TODO print new value
                         plugin.getPlayerUpdater().update(player);
                     }
+                }
+                case "team" -> {
+                    // ... <approve|get> <team_name|index>
+                    if (args.length < 3) return;
+                    String operation = args[2];
+                    switch (operation.toLowerCase(Locale.ROOT)) {
+                        case "approve", "a" -> {}
+                        case "get", "g" -> {}
+                    }
+                }
             }
         } catch (Exception e) {
             invocation.source().sendMessage(

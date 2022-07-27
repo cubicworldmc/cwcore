@@ -26,12 +26,12 @@ public class PlayerLoader {
                         .name(event.getPlayer().getUsername())
                         .build()
         );
-        plugin.getPlayers().loadPermanent(event.getPlayer().getUniqueId());
+        plugin.getCache().loadPlayer(event.getPlayer().getUniqueId(), false);
     }
 
     @Subscribe
     public void quit(DisconnectEvent event) {
-        plugin.getPlayers().removePermanent(event.getPlayer().getUniqueId());
+        plugin.getCache().removePlayer(event.getPlayer().getUniqueId());
     }
 
 }

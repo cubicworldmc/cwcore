@@ -1,13 +1,14 @@
 package space.cubicworld.core.model;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 import net.kyori.adventure.text.format.TextColor;
 
 import java.sql.SQLException;
 import java.util.UUID;
 
 @Data
+@Getter(onMethod_ = @Synchronized)
+@Setter(onMethod_ = @Synchronized)
 @Builder
 public final class CorePlayer {
 

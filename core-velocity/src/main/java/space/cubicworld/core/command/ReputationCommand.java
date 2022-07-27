@@ -9,6 +9,7 @@ import space.cubicworld.core.VelocityUtils;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class ReputationCommand implements SimpleCommand {
         }
         String nickname = args[0];
         try {
-            plugin.getPlayerNameReference().get(nickname)
+            Optional.ofNullable(plugin.getCache().loadPlayer(nickname))
                     .ifPresentOrElse(
                             player -> VelocityUtils.sendChat(
                                     invocation.source(),

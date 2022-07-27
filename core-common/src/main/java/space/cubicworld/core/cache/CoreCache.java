@@ -79,7 +79,10 @@ public class CoreCache<K, V> {
         return value;
     }
 
-    private void put(K key, V value) {
+    private void put(K key, V value, V oldValue) {
+        if (oldValue != null) {
+            secondaryKeys.forEach((clazz, secondaryKey) -> secondaryKey.remove(key, oldValue));
+        }
         if (value != null) {
             secondaryKeys.forEach((clazz, secondaryKey) -> secondaryKey.put(key, value));
         }
@@ -102,12 +105,12 @@ public class CoreCache<K, V> {
     }
 
     public void putPermanent(K key, V value) {
-        put(key, value);
+        put(key, value, permanent.get(key));
         permanent.put(key, value);
     }
 
     public void putCache(K key, V value) {
-        put(key, value);
+        put(key, value, cache.getIfPresent(key));
         cache.put(key, value);
     }
 
@@ -115,6 +118,7 @@ public class CoreCache<K, V> {
         V cacheValue = cache.getIfPresent(key);
         if (cacheValue != null) {
             permanent.put(key, cacheValue);
+            cache.invalidate(key);
             return cacheValue;
         }
         return load(key, value -> permanent.put(key, value));
