@@ -1,0 +1,65 @@
+package space.cubicworld;
+
+import com.electronwill.nightconfig.core.file.FileConfig;
+import com.google.inject.Inject;
+import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.ProxyServer;
+import lombok.Cleanup;
+import lombok.Getter;
+
+import java.io.*;
+import java.nio.file.Path;
+
+@Plugin(
+        id = "cwcore",
+        name = "CWCore",
+        authors = "Jenya705",
+        description = "Core plugin for cubic"
+)
+@Getter
+public class VelocityPlugin {
+
+    private final ProxyServer server;
+    private final CorePlugin core;
+    private final FileConfig config;
+
+    @Inject
+    public VelocityPlugin(
+            ProxyServer server,
+            @DataDirectory Path dataDirectory
+    ) throws ClassNotFoundException, IOException {
+        Class.forName("com.electronwill.nightconfig.yaml.YamlFormat");
+        this.server = server;
+        dataDirectory.toFile().mkdirs();
+        File configFile = dataDirectory.resolve("config.yml").toFile();
+        if (!configFile.exists()) {
+            configFile.createNewFile();
+            @Cleanup InputStream resourcesConfigIs = getClass().getClassLoader().getResourceAsStream("config.yml");
+            if (resourcesConfigIs != null) {
+                @Cleanup OutputStream configOs = new FileOutputStream(configFile);
+                byte[] buffer = new byte[1024];
+                int length = 0;
+                while (true) {
+                    length = resourcesConfigIs.read(buffer);
+                    if (length == 0) break;
+                    configOs.write(buffer, 0, length);
+                }
+                configOs.flush();
+            }
+        }
+        config = FileConfig
+                .builder(configFile)
+                .concurrent()
+                .autosave()
+                .build();
+        config.load();
+        this.core = new CorePlugin(
+                config.get("mysql.host"),
+                config.get("mysql.username"),
+                config.get("mysql.password"),
+                config.get("mysql.database")
+        );
+    }
+
+}
