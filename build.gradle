@@ -24,6 +24,7 @@ allprojects {
     dependencies {
         implementation 'org.hibernate:hibernate-core:6.1.1.Final'
         implementation 'org.hibernate:hibernate-hikaricp:6.1.1.Final'
+        compileOnly 'net.kyori:adventure-api:4.11.0'
         compileOnly 'org.projectlombok:lombok:1.18.24'
         annotationProcessor 'org.projectlombok:lombok:1.18.24'
     }

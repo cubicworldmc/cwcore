@@ -1,9 +1,9 @@
-package space.cubicworld;
+package space.cubicworld.core;
 
 import lombok.Getter;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import space.cubicworld.model.CorePlayer;
+import space.cubicworld.core.model.CorePlayer;
 
 @Getter
 public class CorePlugin {
@@ -19,7 +19,7 @@ public class CorePlugin {
         Class.forName("com.mysql.cj.jdbc.Driver");
         hibernateSessionFactory = new Configuration()
                 .addAnnotatedClass(CorePlayer.class)
-                .setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect")
+                .setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect")
                 .setProperty("hibernate.connection.url", "jdbc:mysql://%s/%s".formatted(mysqlHost, mysqlDatabase))
                 .setProperty("hibernate.connection.username", mysqlUsername)
                 .setProperty("hibernate.connection.password", mysqlPassword)
