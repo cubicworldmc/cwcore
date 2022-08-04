@@ -63,6 +63,9 @@ public class CoreCommandNode<S extends CoreCommandSource> implements CoreCommand
 
     public CoreCommandNode command(CoreCommand<S> command) {
         commands.put(command.getName().toLowerCase(Locale.ROOT), command);
+        for (String alias: command.getAliases()) {
+            commands.put(alias.toLowerCase(Locale.ROOT), command);
+        }
         return this;
     }
 

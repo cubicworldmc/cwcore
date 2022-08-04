@@ -17,6 +17,13 @@ public @interface CoreCommandAnnotation {
     String name() default "";
 
     /**
+     * Aliases of the command
+     *
+     * @return Aliases
+     */
+    String[] aliases() default {};
+
+    /**
      * Permission to enter this command.
      * Usually equals to the name of command because in the node command used as end parameter
      *

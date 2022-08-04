@@ -2,8 +2,9 @@ package space.cubicworld.core.model;
 
 
 import jakarta.persistence.*;
-import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import net.kyori.adventure.text.format.TextColor;
 
 import java.util.UUID;
@@ -15,12 +16,13 @@ import java.util.UUID;
         uniqueConstraints =
                 @UniqueConstraint(columnNames = "name")
 )
-@Builder
+@SuperBuilder
+@NoArgsConstructor
 public class CorePlayer {
 
     @Id
     @Column(name = "uuid")
-    private final UUID uuid;
+    private UUID uuid;
 
     @Column(name = "name")
     private String name;

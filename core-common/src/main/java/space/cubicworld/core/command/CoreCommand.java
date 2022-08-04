@@ -22,6 +22,11 @@ public interface CoreCommand<S> {
         return annotation.name();
     }
 
+    default String[] getAliases() {
+        CoreCommandAnnotation annotation = getClass().getAnnotation(CoreCommandAnnotation.class);
+        return annotation == null ? new String[0] : annotation.aliases();
+    }
+
     default String getPermission() {
         CoreCommandAnnotation annotation = getClass().getAnnotation(CoreCommandAnnotation.class);
         if (annotation == null || annotation.permission().isEmpty()) {

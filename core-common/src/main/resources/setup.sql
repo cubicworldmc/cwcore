@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS players (
+    uuid BINARY(16) NOT NULL PRIMARY KEY,
+    name VARCHAR(16) NOT NULL UNIQUE KEY,
+    reputation INT NOT NULL,
+    global_color INT NOT NULL
+);

@@ -10,7 +10,11 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import lombok.Cleanup;
 import lombok.Getter;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 import org.slf4j.Logger;
+import space.cubicworld.core.command.ReputationCommand;
+import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.listener.VelocityJoinListener;
 
 import java.io.*;
@@ -75,12 +79,37 @@ public class VelocityPlugin {
 
     @Subscribe
     public void initialize(ProxyInitializeEvent event) {
+        new VelocityCoreCommand(new ReputationCommand(this)).register(this);
         server.getEventManager().register(this, new VelocityJoinListener(this));
     }
 
     @Subscribe
     public void shutdown(ProxyShutdownEvent event) {
         core.getHibernateSessionFactory().close();
+    }
+
+    /**
+     *
+     * Ensures that transaction is active
+     *
+     * @return already active transaction
+     */
+    public Transaction currentTransaction() {
+        Transaction transaction = currentSession().getTransaction();
+        if (!transaction.isActive()) transaction.begin();
+        return transaction;
+    }
+
+    /**
+     *
+     * Macros for: getCore().getHibernateSessionFactory().getCurrentSession()
+     *
+     * @return Current hibernate session
+     */
+    public Session currentSession() {
+        return core
+                .getHibernateSessionFactory()
+                .getCurrentSession();
     }
 
 }
