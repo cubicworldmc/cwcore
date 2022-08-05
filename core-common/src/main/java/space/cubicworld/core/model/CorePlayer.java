@@ -16,6 +16,7 @@ import java.util.UUID;
         uniqueConstraints =
                 @UniqueConstraint(columnNames = "name")
 )
+@Cacheable
 @SuperBuilder
 @NoArgsConstructor
 public class CorePlayer {

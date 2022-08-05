@@ -10,10 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 @RequiredArgsConstructor
-public class CoreCommandNode<S extends CoreCommandSource> implements CoreCommand<S> {
+public class CoreCommandNode<S extends CoreCommandSource> extends AbstractCoreCommand<S> {
 
     private final Map<String, CoreCommand<S>> commands = new ConcurrentHashMap<>();
-    private final String name;
 
     @Override
     public void execute(S source, Iterator<String> args) {
@@ -22,7 +21,7 @@ public class CoreCommandNode<S extends CoreCommandSource> implements CoreCommand
         }
         String commandName = args.next().toLowerCase(Locale.ROOT);
         CoreCommand<S> command = commands.get(commandName);
-        if (command == null) {
+        if (command == null || !source.hasPermission(command)) {
             return;
         }
         command.execute(source, args);
@@ -35,29 +34,17 @@ public class CoreCommandNode<S extends CoreCommandSource> implements CoreCommand
         }
         String commandName = args.next().toLowerCase(Locale.ROOT);
         CoreCommand<S> command = commands.get(commandName);
-        if (command == null) {
+        if (command == null || !source.hasPermission(command)) {
             return possibleCommands(source).toList();
         }
         return command.tab(source, args);
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public boolean isAdmin() {
-        return false;
     }
 
     private Stream<String> possibleCommands(S source) {
         return commands
                 .entrySet()
                 .stream()
-                .filter(entry -> entry.getValue().hasPermission(source.getPermission(
-                        getPermission() + "." + entry.getValue().getPermission()
-                )))
+                .filter(entry -> source.hasPermission(entry.getValue()))
                 .map(Map.Entry::getKey);
     }
 

@@ -9,4 +9,8 @@ public interface CoreCommandSource {
 
     TriState getPermission(String permission);
 
+    default boolean hasPermission(CoreCommand<?> command) {
+        return command.hasPermission(getPermission(command.getPermission()));
+    }
+
 }

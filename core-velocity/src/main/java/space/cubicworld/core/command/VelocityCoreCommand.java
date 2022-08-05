@@ -4,6 +4,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 
+import java.util.Arrays;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -21,16 +22,20 @@ public class VelocityCoreCommand implements SimpleCommand {
 
     @Override
     public List<String> suggest(Invocation invocation) {
+        String[] args = invocation.arguments();
+        if (args.length != 0 && args[args.length - 1].isEmpty()) {
+            args = Arrays.copyOfRange(args, 0, args.length - 1);
+        }
         return command.tab(
                 new VelocityCoreCommandSource(invocation.source()),
-                List.of(invocation.arguments()).iterator()
+                List.of(args).iterator()
         );
     }
 
     @Override
     public boolean hasPermission(Invocation invocation) {
         VelocityCoreCommandSource source = new VelocityCoreCommandSource(invocation.source());
-        return command.hasPermission(source.getPermission(command.getPermission()));
+        return source.hasPermission(command);
     }
 
     @Override

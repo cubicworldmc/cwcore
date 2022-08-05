@@ -4,9 +4,7 @@ import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.hibernate.Transaction;
 import space.cubicworld.core.VelocityPlugin;
-import space.cubicworld.core.model.CorePlayer;
 
 import java.util.Iterator;
 import java.util.List;
@@ -17,7 +15,7 @@ import java.util.List;
         permission = "cwcore.reputation.see"
 )
 @RequiredArgsConstructor
-public class ReputationCommand implements CoreCommand<VelocityCoreCommandSource> {
+public class ReputationCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
 
@@ -35,8 +33,8 @@ public class ReputationCommand implements CoreCommand<VelocityCoreCommandSource>
             );
             return;
         }
-        plugin.currentTransaction();
-        int playerReputation = plugin
+        plugin.beginTransaction();
+        Integer playerReputation = plugin
                 .currentSession()
                 .createQuery(
                         "SELECT p.reputation FROM CorePlayer p WHERE p.name = :name",
@@ -54,6 +52,6 @@ public class ReputationCommand implements CoreCommand<VelocityCoreCommandSource>
 
     @Override
     public List<String> tab(VelocityCoreCommandSource source, Iterator<String> args) {
-        return null;
+        return plugin.commandHelper().playersTab();
     }
 }

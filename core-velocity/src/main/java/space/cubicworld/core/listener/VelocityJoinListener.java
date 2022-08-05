@@ -2,10 +2,8 @@ package space.cubicworld.core.listener;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Transaction;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.model.CorePlayer;
 
@@ -16,11 +14,8 @@ public class VelocityJoinListener {
 
     @Subscribe
     public void join(PlayerChooseInitialServerEvent event) {
-        EntityManager entityManager = plugin
-                .getCore()
-                .getHibernateSessionFactory()
-                .getCurrentSession();
-        Transaction transaction = plugin.currentTransaction();
+        EntityManager entityManager = plugin.currentSession();
+        plugin.beginTransaction();
         if (entityManager.find(CorePlayer.class, event.getPlayer().getUniqueId()) == null) {
             entityManager.persist(CorePlayer
                     .builder()
@@ -29,9 +24,9 @@ public class VelocityJoinListener {
                     .globalColor(-1)
                     .build()
             );
-            transaction.commit();
+            plugin.commitTransaction();
         }
-        // We should not commit transaction if not persist changes were made.
+        // We do not need to commit transaction if no persist changes were made.
     }
 
 }

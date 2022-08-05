@@ -14,7 +14,9 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import space.cubicworld.core.command.ReputationCommand;
+import space.cubicworld.core.command.VelocityCommandHelper;
 import space.cubicworld.core.command.VelocityCoreCommand;
+import space.cubicworld.core.command.admin.AdminCommand;
 import space.cubicworld.core.listener.VelocityJoinListener;
 
 import java.io.*;
@@ -80,6 +82,7 @@ public class VelocityPlugin {
     @Subscribe
     public void initialize(ProxyInitializeEvent event) {
         new VelocityCoreCommand(new ReputationCommand(this)).register(this);
+        new VelocityCoreCommand(new AdminCommand(this)).register(this);
         server.getEventManager().register(this, new VelocityJoinListener(this));
     }
 
@@ -89,19 +92,28 @@ public class VelocityPlugin {
     }
 
     /**
-     *
      * Ensures that transaction is active
      *
-     * @return already active transaction
+     * @return Already active transaction
      */
-    public Transaction currentTransaction() {
+    public Transaction beginTransaction() {
         Transaction transaction = currentSession().getTransaction();
         if (!transaction.isActive()) transaction.begin();
         return transaction;
     }
 
     /**
+     * Ensures that transaction is committed
      *
+     * @return Already committed transaction
+     */
+    public Transaction commitTransaction() {
+        Transaction transaction = currentSession().getTransaction();
+        if (transaction.isActive()) transaction.commit();
+        return transaction;
+    }
+
+    /**
      * Macros for: getCore().getHibernateSessionFactory().getCurrentSession()
      *
      * @return Current hibernate session
@@ -110,6 +122,10 @@ public class VelocityPlugin {
         return core
                 .getHibernateSessionFactory()
                 .getCurrentSession();
+    }
+
+    public VelocityCommandHelper commandHelper() {
+        return new VelocityCommandHelper(this);
     }
 
 }
