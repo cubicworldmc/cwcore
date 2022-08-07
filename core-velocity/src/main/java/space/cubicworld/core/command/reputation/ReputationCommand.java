@@ -1,10 +1,15 @@
-package space.cubicworld.core.command;
+package space.cubicworld.core.command.reputation;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import space.cubicworld.core.VelocityPlugin;
+import space.cubicworld.core.command.AbstractCoreCommand;
+import space.cubicworld.core.command.CoreCommandAnnotation;
+import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.message.CoreMessage;
+import space.cubicworld.core.model.CorePlayer;
 
 import java.util.Iterator;
 import java.util.List;
@@ -27,26 +32,16 @@ public class ReputationCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         } else if (source.getSource() instanceof Player player) {
             name = player.getUsername();
         } else {
-            source.sendMessage(Component
-                    .text("Player nickname should be passed")
-                    .color(NamedTextColor.RED)
-            );
+            source.sendMessage(CoreMessage.providePlayerName());
             return;
         }
-        plugin.beginTransaction();
-        Integer playerReputation = plugin
-                .currentSession()
-                .createQuery(
-                        "SELECT p.reputation FROM CorePlayer p WHERE p.name = :name",
-                        Integer.class
-                )
-                .setParameter("name", name)
-                .getSingleResultOrNull();
-        source.sendMessage(Component
-                .text("Reputation of the player %s is %s".formatted(
-                        name,
-                        Integer.toString(playerReputation)
-                ))
+        CorePlayer player = plugin
+                .getPlayerByName()
+                .getOptionalModel(name)
+                .orElse(null);
+        source.sendMessage(player == null ?
+                CoreMessage.playerNotExist(name) :
+                CoreMessage.playerReputation(player)
         );
     }
 

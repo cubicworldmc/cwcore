@@ -3,3 +3,5 @@ mysql:
   username: 'root'
   password: '1'
   database: 'cwcore'
+
+ignored-servers: ['reg-limbo']

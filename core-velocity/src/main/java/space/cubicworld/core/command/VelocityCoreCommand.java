@@ -22,13 +22,9 @@ public class VelocityCoreCommand implements SimpleCommand {
 
     @Override
     public List<String> suggest(Invocation invocation) {
-        String[] args = invocation.arguments();
-        if (args.length != 0 && args[args.length - 1].isEmpty()) {
-            args = Arrays.copyOfRange(args, 0, args.length - 1);
-        }
         return command.tab(
                 new VelocityCoreCommandSource(invocation.source()),
-                List.of(args).iterator()
+                List.of(invocation.arguments()).iterator()
         );
     }
 

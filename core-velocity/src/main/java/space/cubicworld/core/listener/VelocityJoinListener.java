@@ -26,6 +26,10 @@ public class VelocityJoinListener {
             );
             plugin.commitTransaction();
         }
+        plugin.getPlayerByName().cache(
+                event.getPlayer().getUniqueId(),
+                event.getPlayer().getUsername()
+        );
         // We do not need to commit transaction if no persist changes were made.
     }
 

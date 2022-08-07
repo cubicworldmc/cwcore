@@ -3,10 +3,14 @@ package space.cubicworld.core.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import net.kyori.adventure.text.format.TextColor;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -32,7 +36,17 @@ public class CorePlayer {
     private int reputation;
 
     @Column(name = "global_color")
-    private int globalColor = -1;
+    private int globalColor;
+
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "link.player")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<CoreTeamMember> teams;
+
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "link.player")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<CoreTeamInvitation> invitations;
 
     public void setGlobalColor(TextColor color) {
         this.globalColor = color == null ? -1 : color.value();

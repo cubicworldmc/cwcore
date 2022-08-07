@@ -13,14 +13,21 @@ import lombok.Getter;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.slf4j.Logger;
-import space.cubicworld.core.command.ReputationCommand;
+import space.cubicworld.core.cache.CoreSecondaryCache;
 import space.cubicworld.core.command.VelocityCommandHelper;
 import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.command.admin.AdminCommand;
+import space.cubicworld.core.command.reputation.ReputationCommand;
+import space.cubicworld.core.command.team.TeamCommand;
 import space.cubicworld.core.listener.VelocityJoinListener;
+import space.cubicworld.core.message.CoreMessage;
+import space.cubicworld.core.model.CorePlayer;
+import space.cubicworld.core.model.CoreTeam;
+import space.cubicworld.core.notification.TeamInvitationNotification;
 
 import java.io.*;
 import java.nio.file.Path;
+import java.util.UUID;
 
 @Plugin(
         id = "cwcore",
@@ -36,6 +43,9 @@ public class VelocityPlugin {
     private final FileConfig config;
     private final Logger logger;
 
+    private final CoreSecondaryCache<String, UUID, CorePlayer> playerByName;
+    private final CoreSecondaryCache<String, Integer, CoreTeam> teamByName;
+
     @Inject
     public VelocityPlugin(
             ProxyServer server,
@@ -45,6 +55,7 @@ public class VelocityPlugin {
         Class.forName("com.electronwill.nightconfig.yaml.YamlFormat");
         this.server = server;
         this.logger = logger;
+        CoreMessage.register(getClass().getClassLoader(), logger);
         dataDirectory.toFile().mkdirs();
         File configFile = dataDirectory.resolve("config.yml").toFile();
         if (!configFile.exists()) {
@@ -60,8 +71,7 @@ public class VelocityPlugin {
                     configOs.write(buffer, 0, length);
                 }
                 configOs.flush();
-            }
-            else {
+            } else {
                 logger.warn("Could not find config.yml in plugin resources");
             }
         }
@@ -77,12 +87,26 @@ public class VelocityPlugin {
                 config.get("mysql.password"),
                 config.get("mysql.database")
         );
+        playerByName = new CoreSecondaryCache<>(
+                core,
+                CorePlayer.class,
+                "FROM CorePlayer p WHERE p.name = :key",
+                CorePlayer::getUuid
+        );
+        teamByName = new CoreSecondaryCache<>(
+                core,
+                CoreTeam.class,
+                "FROM CoreTeam t WHERE t.name = :key",
+                CoreTeam::getId
+        );
     }
 
     @Subscribe
     public void initialize(ProxyInitializeEvent event) {
         new VelocityCoreCommand(new ReputationCommand(this)).register(this);
         new VelocityCoreCommand(new AdminCommand(this)).register(this);
+        new VelocityCoreCommand(new TeamCommand(this)).register(this);
+        server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
     }
 
@@ -97,9 +121,7 @@ public class VelocityPlugin {
      * @return Already active transaction
      */
     public Transaction beginTransaction() {
-        Transaction transaction = currentSession().getTransaction();
-        if (!transaction.isActive()) transaction.begin();
-        return transaction;
+        return core.beginTransaction();
     }
 
     /**
@@ -108,9 +130,7 @@ public class VelocityPlugin {
      * @return Already committed transaction
      */
     public Transaction commitTransaction() {
-        Transaction transaction = currentSession().getTransaction();
-        if (transaction.isActive()) transaction.commit();
-        return transaction;
+        return core.commitTransaction();
     }
 
     /**
