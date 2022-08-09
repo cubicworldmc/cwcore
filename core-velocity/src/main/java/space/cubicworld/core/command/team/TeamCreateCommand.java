@@ -9,11 +9,14 @@ import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamCreateEvent;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.model.CorePlayer;
+import space.cubicworld.core.model.CorePlayerTeamLink;
 import space.cubicworld.core.model.CoreTeam;
+import space.cubicworld.core.model.CoreTeamMember;
 
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 @CoreCommandAnnotation(
         name = "create",
@@ -36,16 +39,28 @@ public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         plugin.beginTransaction();
+        CorePlayer corePlayer = CorePlayer
+                .builder()
+                .uuid(player.getUniqueId())
+                .build();
+        CoreTeam notVerifiedTeam = plugin.currentSession()
+                .createQuery(
+                        "FROM CoreTeam t WHERE t.verified = false AND t.owner = :player",
+                        CoreTeam.class
+                )
+                .setParameter("player", corePlayer)
+                .getSingleResultOrNull();
+        if (notVerifiedTeam != null) {
+            source.sendMessage(CoreMessage.oneTeamNotVerified(notVerifiedTeam));
+            return;
+        }
         if (plugin.getTeamByName().getOptionalModel(teamName).isEmpty()) {
             CoreTeam team = CoreTeam
                     .builder()
                     .name(teamName)
-                    .owner(CorePlayer
-                            .builder()
-                            .uuid(player.getUniqueId())
-                            .build()
-                    )
+                    .owner(corePlayer)
                     .build();
+            team.setMembers(Set.of(new CoreTeamMember(new CorePlayerTeamLink(corePlayer, team))));
             plugin.currentSession().persist(team);
             plugin.commitTransaction();
             plugin.getServer().getEventManager().fireAndForget(

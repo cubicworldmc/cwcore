@@ -6,7 +6,7 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
-import space.cubicworld.core.event.TeamInviteEvent;
+import space.cubicworld.core.event.TeamInviteAcceptEvent;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.model.*;
 
@@ -15,12 +15,12 @@ import java.util.Iterator;
 import java.util.List;
 
 @CoreCommandAnnotation(
-        name = "invite",
-        permission = "cwcore.team.invite",
-        aliases = "i"
+        name = "accept",
+        permission = "cwcore.team.accept",
+        aliases = "a"
 )
 @RequiredArgsConstructor
-public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
+public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
 
@@ -31,11 +31,6 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         String teamName = args.next();
-        if (!args.hasNext()) {
-            source.sendMessage(CoreMessage.providePlayerName());
-            return;
-        }
-        String playerName = args.next();
         if (!(source.getSource() instanceof Player player)) {
             source.sendMessage(CoreMessage.forPlayer());
             return;
@@ -44,41 +39,32 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
                 .getTeamByName()
                 .getOptionalModel(teamName)
                 .orElse(null);
-        if (team == null || !team.getOwner().getUuid().equals(player.getUniqueId())) {
+        if (team == null) {
             source.sendMessage(CoreMessage.teamNotExist(teamName));
             return;
         }
-        CorePlayer invited = plugin
-                .getPlayerByName()
-                .getOptionalModel(playerName)
-                .orElse(null);
-        if (invited == null) {
-            source.sendMessage(CoreMessage.playerNotExist(playerName));
-            return;
-        }
-        CorePlayerTeamLink link = new CorePlayerTeamLink(invited, team);
         plugin.beginTransaction();
-        if (plugin.currentSession().get(CoreTeamInvitation.class, link) != null) {
-            source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
+        CoreTeamInvitation invitation = plugin
+                .currentSession()
+                .find(CoreTeamInvitation.class, new CorePlayerTeamLink(
+                        plugin.currentSession().find(CorePlayer.class, player.getUniqueId()),
+                        team
+                ));
+        if (invitation == null) {
+            source.sendMessage(CoreMessage.notInvited(team));
             return;
         }
-        if (plugin.currentSession().get(CoreTeamMember.class, link) != null) {
-            source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
-            return;
-        }
-        CoreTeamInvitation invitation = new CoreTeamInvitation(link);
-        team.getInvitations().add(invitation);
-        plugin.currentSession().persist(invitation);
+        plugin.currentSession().remove(invitation);
+        plugin.currentSession().persist(new CoreTeamMember(invitation.getLink()));
         plugin.commitTransaction();
         plugin.getServer().getEventManager().fireAndForget(
-                TeamInviteEvent
+                TeamInviteAcceptEvent
                         .builder()
-                        .invited(invited)
-                        .inviter(player)
                         .team(team)
+                        .invited(player)
                         .build()
         );
-        source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
+        source.sendMessage(CoreMessage.inviteAccepted(team));
     }
 
     @Override
@@ -89,10 +75,6 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         args.next();
         if (!args.hasNext()) {
             return Collections.singletonList("<team_name>");
-        }
-        args.next();
-        if (!args.hasNext()) {
-            return plugin.commandHelper().playersTab();
         }
         return Collections.emptyList();
     }

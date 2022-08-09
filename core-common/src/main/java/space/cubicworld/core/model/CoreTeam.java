@@ -37,7 +37,7 @@ public class CoreTeam {
     @Column(name = "private")
     private boolean privateTeam;
 
-    @OneToOne(optional = false)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "owner_uuid", referencedColumnName = "uuid")
     private CorePlayer owner;
 

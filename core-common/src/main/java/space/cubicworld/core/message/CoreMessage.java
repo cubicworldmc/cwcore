@@ -112,6 +112,12 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public Component alreadyInTeam(CorePlayer player, CoreTeam team) {
+        return translatable("cwcore.team.already.in")
+                .args(playerMention(player), teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
     public Component teamCreated(CoreTeam team) {
         return translatable("cwcore.team.created")
                 .args(teamMention(team))
@@ -128,6 +134,30 @@ public class CoreMessage {
         return translatable("cwcore.team.invited")
                 .args(playerMention(invited), teamMention(team))
                 .color(SUCCESS_COLOR);
+    }
+
+    public Component teamInvite(CorePlayer inviter, CoreTeam team) {
+        return translatable("cwcore.team.invite")
+                .args(playerMention(inviter), teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component notInvited(CoreTeam team) {
+        return translatable("cwcore.team.invited.not")
+                .args(teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
+    public Component inviteAccepted(CoreTeam team) {
+        return translatable("cwcore.team.invite.accept")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component oneTeamNotVerified(CoreTeam team) {
+        return translatable("cwcore.team.verified.not")
+                .args(teamMention(team))
+                .color(FAIL_COLOR);
     }
 
 }
