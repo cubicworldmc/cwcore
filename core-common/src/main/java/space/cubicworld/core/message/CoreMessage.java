@@ -4,6 +4,7 @@ import lombok.Cleanup;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.event.HoverEventSource;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -13,11 +14,13 @@ import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
 import space.cubicworld.core.model.CorePlayer;
 import space.cubicworld.core.model.CoreTeam;
+import space.cubicworld.core.model.CoreTeamMember;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
 
@@ -90,6 +93,7 @@ public class CoreMessage {
                         Key.key("minecraft", "player"),
                         player.getUuid()
                 ))
+                .clickEvent(ClickEvent.runCommand("/tell %s".formatted(player.getName())))
                 .color(color == null ? MENTION_COLOR : color);
     }
 
@@ -158,6 +162,51 @@ public class CoreMessage {
         return translatable("cwcore.team.verified.not")
                 .args(teamMention(team))
                 .color(FAIL_COLOR);
+    }
+
+    public Component teamAlreadyVerified(CoreTeam team) {
+        return translatable("cwcore.team.verified.already")
+                .args(teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamVerifiedSet(CoreTeam team) {
+        return translatable("cwcore.team.verified.set")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component teamAbout(CoreTeam team) {
+        Component members = empty();
+        Iterator<CoreTeamMember> memberIterator = team.getMembers().iterator();
+        int counter = 0;
+        while (memberIterator.hasNext()) {
+            if (counter++ == 10) {
+                members = members.append(text("..."));
+            }
+            else {
+                members = members.append(playerMention(memberIterator.next().getLink().getPlayer()));
+                if (memberIterator.hasNext()) members = members.append(text(", "));
+            }
+        }
+        return empty()
+                .append(translatable("cwcore.team.about.name")
+                        .args(teamMention(team))
+                )
+                .append(Component.newline())
+                .append(team.getDescription() == null ?
+                        empty() :
+                        translatable("cwcore.team.about.description")
+                                .args(text(team.getDescription()))
+                                .append(newline())
+                )
+                .append(translatable("cwcore.team.about.owner")
+                        .args(playerMention(team.getOwner()))
+                )
+                .append(newline())
+                .append(translatable("cwcore.team.about.members")
+                        .args(members)
+                );
     }
 
 }

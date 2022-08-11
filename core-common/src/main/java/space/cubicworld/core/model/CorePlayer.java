@@ -38,6 +38,10 @@ public class CorePlayer {
     @Column(name = "global_color")
     private int globalColor;
 
+    @ManyToOne
+    @JoinColumn(name = "selected_team_id", referencedColumnName = "id")
+    private CoreTeam selectedTeam;
+
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "link.player")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
