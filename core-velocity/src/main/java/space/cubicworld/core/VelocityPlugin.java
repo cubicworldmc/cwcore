@@ -23,7 +23,7 @@ import space.cubicworld.core.listener.VelocityJoinListener;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.model.CorePlayer;
 import space.cubicworld.core.model.CoreTeam;
-import space.cubicworld.core.notification.TeamInvitationNotification;
+import space.cubicworld.core.listener.TeamInvitationNotification;
 
 import java.io.*;
 import java.nio.file.Path;

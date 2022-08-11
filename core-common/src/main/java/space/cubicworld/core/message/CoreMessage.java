@@ -1,14 +1,13 @@
 package space.cubicworld.core.message;
 
-import lombok.Cleanup;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.event.HoverEventSource;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
@@ -33,6 +32,7 @@ public class CoreMessage {
     private final TextColor MENTION_COLOR = NamedTextColor.BLUE;
     private final TextColor SUCCESS_COLOR = NamedTextColor.WHITE;
     private final TextColor INFORMATION_COLOR = NamedTextColor.WHITE;
+    private final TextColor CLICKABLE_COLOR = NamedTextColor.GOLD;
 
     public void register(ClassLoader classLoader, Logger logger) {
         TranslationRegistry registry = TranslationRegistry.create(Key.key("cwcore", "main"));
@@ -59,6 +59,13 @@ public class CoreMessage {
         }
     }
 
+    private Component confirm() {
+        return empty()
+                .append(text("[").color(INFORMATION_COLOR))
+                .append(translatable("cwcore.command.confirm").color(CLICKABLE_COLOR))
+                .append(text("]").color(INFORMATION_COLOR));
+    }
+
     public Component provideTeamName() {
         return translatable("cwcore.command.provide.team")
                 .color(FAIL_COLOR);
@@ -75,13 +82,13 @@ public class CoreMessage {
     }
 
     public Component playerNotExist(String playerName) {
-        return translatable("cwcore.player.not_exist")
+        return translatable("cwcore.player.exist.not")
                 .args(text(playerName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
     public Component teamNotExist(String teamName) {
-        return translatable("cwcore.team.not_exist")
+        return translatable("cwcore.team.exist.not")
                 .args(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
@@ -183,8 +190,7 @@ public class CoreMessage {
         while (memberIterator.hasNext()) {
             if (counter++ == 10) {
                 members = members.append(text("..."));
-            }
-            else {
+            } else {
                 members = members.append(playerMention(memberIterator.next().getLink().getPlayer()));
                 if (memberIterator.hasNext()) members = members.append(text(", "));
             }
@@ -207,6 +213,45 @@ public class CoreMessage {
                 .append(translatable("cwcore.team.about.members")
                         .args(members)
                 );
+    }
+
+    public Component teamLeaveCanNot(String teamName) {
+        return translatable("cwcore.team.leave.not")
+                .args(text(teamName).color(MENTION_COLOR))
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamLeaved(CoreTeam team) {
+        return translatable("cwcore.team.leave")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component teamDeleteCanNot(String teamName) {
+        return translatable("cwcore.team.delete.not")
+                .args(text(teamName).color(MENTION_COLOR))
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamDeleteConfirm(CoreTeam team) {
+        return empty()
+                .append(translatable("cwcore.team.delete.confirm")
+                        .args(teamMention(team))
+                        .color(INFORMATION_COLOR)
+                )
+                .append(space())
+                .append(confirm()
+                        .clickEvent(ClickEvent
+                                .runCommand("/team delete %s confirm".formatted(team.getName()))
+                        )
+                )
+                .decorate(TextDecoration.BOLD);
+    }
+
+    public Component teamDeleted(CoreTeam team) {
+        return translatable("cwcore.team.delete")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
     }
 
 }
