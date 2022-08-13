@@ -6,9 +6,10 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePlayerTeamRelation;
+import space.cubicworld.core.database.CoreTeam;
 import space.cubicworld.core.event.TeamInviteAcceptEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.*;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -36,27 +37,22 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         CoreTeam team = plugin
-                .getTeamByName()
-                .getOptionalModel(teamName)
+                .getDatabase()
+                .fetchOptionalTeamByName(teamName)
                 .orElse(null);
         if (team == null) {
             source.sendMessage(CoreMessage.teamNotExist(teamName));
             return;
         }
-        plugin.beginTransaction();
-        CoreTeamInvitation invitation = plugin
-                .currentSession()
-                .find(CoreTeamInvitation.class, new CorePlayerTeamLink(
-                        plugin.currentSession().find(CorePlayer.class, player.getUniqueId()),
-                        team
-                ));
-        if (invitation == null) {
+        CorePlayerTeamRelation relation = plugin
+                .getDatabase()
+                .fetchRelation(player.getUniqueId(), team.getId());
+        if (relation.getRelation() != CorePlayerTeamRelation.Relation.INVITE) {
             source.sendMessage(CoreMessage.notInvited(team));
             return;
         }
-        plugin.currentSession().remove(invitation);
-        plugin.currentSession().persist(new CoreTeamMember(invitation.getLink()));
-        plugin.commitTransaction();
+        relation.setRelation(CorePlayerTeamRelation.Relation.MEMBERSHIP);
+        relation.update();
         plugin.getServer().getEventManager().fireAndForget(
                 TeamInviteAcceptEvent
                         .builder()

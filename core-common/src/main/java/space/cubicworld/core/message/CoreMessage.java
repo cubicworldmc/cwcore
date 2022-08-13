@@ -1,5 +1,6 @@
 package space.cubicworld.core.message;
 
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -11,9 +12,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
-import space.cubicworld.core.model.CorePlayer;
-import space.cubicworld.core.model.CoreTeam;
-import space.cubicworld.core.model.CoreTeamMember;
+import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.database.CoreTeam;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -183,15 +183,16 @@ public class CoreMessage {
                 .color(SUCCESS_COLOR);
     }
 
+    @SneakyThrows
     public Component teamAbout(CoreTeam team) {
         Component members = empty();
-        Iterator<CoreTeamMember> memberIterator = team.getMembers().iterator();
+        Iterator<CorePlayer> memberIterator = team.getMembershipsIterator();
         int counter = 0;
         while (memberIterator.hasNext()) {
             if (counter++ == 10) {
                 members = members.append(text("..."));
             } else {
-                members = members.append(playerMention(memberIterator.next().getLink().getPlayer()));
+                members = members.append(playerMention(memberIterator.next()));
                 if (memberIterator.hasNext()) members = members.append(text(", "));
             }
         }

@@ -9,7 +9,7 @@ import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
+import space.cubicworld.core.database.CorePlayer;
 
 import java.util.Iterator;
 import java.util.List;
@@ -36,8 +36,8 @@ public class ReputationCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         CorePlayer player = plugin
-                .getPlayerByName()
-                .getOptionalModel(name)
+                .getDatabase()
+                .fetchOptionalPlayerByName(name)
                 .orElse(null);
         source.sendMessage(player == null ?
                 CoreMessage.playerNotExist(name) :

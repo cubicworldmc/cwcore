@@ -1,12 +1,13 @@
 package space.cubicworld.core.command.admin;
 
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
+import space.cubicworld.core.database.CorePlayer;
 
 import java.util.*;
 
@@ -22,6 +23,7 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
     private final VelocityPlugin plugin;
 
     @Override
+    @SneakyThrows
     public void execute(VelocityCoreCommandSource source, Iterator<String> args) {
         if (!args.hasNext()) {
             source.sendMessage(CoreMessage.providePlayerName());
@@ -36,7 +38,7 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
             return;
         }
         int amount = Integer.parseInt(args.next());
-        Optional<CorePlayer> optionalPlayer = plugin.getPlayerByName().getOptionalModel(playerName);
+        Optional<CorePlayer> optionalPlayer = plugin.getDatabase().fetchOptionalPlayerByName(playerName);
         if (optionalPlayer.isEmpty()) {
             source.sendMessage(CoreMessage.playerNotExist(playerName));
             return;
@@ -50,9 +52,7 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
         }
         if (newReputation != player.getReputation()) {
             player.setReputation(newReputation);
-            plugin.beginTransaction();
-            plugin.currentSession().merge(player);
-            plugin.commitTransaction();
+            player.update();
         }
         source.sendMessage(CoreMessage.playerReputation(player));
     }

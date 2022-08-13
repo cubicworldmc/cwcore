@@ -8,7 +8,7 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamInviteEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.*;
+import space.cubicworld.core.database.*;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -41,35 +41,34 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         CoreTeam team = plugin
-                .getTeamByName()
-                .getOptionalModel(teamName)
+                .getDatabase()
+                .fetchOptionalTeamByName(teamName)
                 .orElse(null);
         if (team == null || !team.getOwner().getUuid().equals(player.getUniqueId())) {
             source.sendMessage(CoreMessage.teamNotExist(teamName));
             return;
         }
         CorePlayer invited = plugin
-                .getPlayerByName()
-                .getOptionalModel(playerName)
+                .getDatabase()
+                .fetchOptionalPlayerByName(playerName)
                 .orElse(null);
         if (invited == null) {
             source.sendMessage(CoreMessage.playerNotExist(playerName));
             return;
         }
-        CorePlayerTeamLink link = new CorePlayerTeamLink(invited, team);
-        plugin.beginTransaction();
-        if (plugin.currentSession().get(CoreTeamInvitation.class, link) != null) {
+        CorePlayerTeamRelation relation = plugin
+                .getDatabase()
+                .fetchRelation(invited.getUuid(), team.getId());
+        if (relation.getRelation() == CorePlayerTeamRelation.Relation.INVITE) {
             source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
             return;
         }
-        if (plugin.currentSession().get(CoreTeamMember.class, link) != null) {
+        if (relation.getRelation() == CorePlayerTeamRelation.Relation.MEMBERSHIP) {
             source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
             return;
         }
-        CoreTeamInvitation invitation = new CoreTeamInvitation(link);
-        team.getInvitations().add(invitation);
-        plugin.currentSession().persist(invitation);
-        plugin.commitTransaction();
+        team.addInvited(invited);
+        team.update();
         plugin.getServer().getEventManager().fireAndForget(
                 TeamInviteEvent
                         .builder()

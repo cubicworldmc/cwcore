@@ -2,10 +2,10 @@ package space.cubicworld.core.listener;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
-import space.cubicworld.core.model.CorePlayer;
+
+import java.sql.SQLException;
 
 @RequiredArgsConstructor
 public class VelocityJoinListener {
@@ -13,23 +13,18 @@ public class VelocityJoinListener {
     private final VelocityPlugin plugin;
 
     @Subscribe
-    public void join(PlayerChooseInitialServerEvent event) {
-        EntityManager entityManager = plugin.currentSession();
-        plugin.beginTransaction();
-        if (entityManager.find(CorePlayer.class, event.getPlayer().getUniqueId()) == null) {
-            entityManager.persist(CorePlayer
-                    .builder()
-                    .uuid(event.getPlayer().getUniqueId())
-                    .name(event.getPlayer().getUsername())
-                    .globalColor(-1)
-                    .build()
-            );
+    public void join(PlayerChooseInitialServerEvent event) throws SQLException {
+        if (!plugin.getDatabase()
+                .fetchPlayerByUuid(event.getPlayer().getUniqueId())
+                .isActuallyExists()
+        ) {
+            plugin.getDatabase()
+                    .newPlayer(
+                            event.getPlayer().getUniqueId(),
+                            event.getPlayer().getUsername()
+                    )
+                    .update();
         }
-        plugin.commitTransaction();
-        plugin.getPlayerByName().cache(
-                event.getPlayer().getUniqueId(),
-                event.getPlayer().getUsername()
-        );
     }
 
 }

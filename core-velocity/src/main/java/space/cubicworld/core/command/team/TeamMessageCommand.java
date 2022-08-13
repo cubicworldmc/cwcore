@@ -10,9 +10,8 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamMessageEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
-import space.cubicworld.core.model.CoreTeam;
-import space.cubicworld.core.model.CoreTeamMember;
+import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.database.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -39,43 +38,38 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        plugin.beginTransaction();
         CoreTeam team = plugin
-                .currentSession()
-                .createQuery("""
-                        FROM CoreTeam team
-                        INNER JOIN CoreTeamMember member ON member.link.player = :player AND member.link.team = team
-                        WHERE team.name = :name
-                        """, CoreTeam.class
-                )
-                .setParameter("player", plugin.currentSession().find(CorePlayer.class, player.getUniqueId()))
-                .setParameter("name", teamName)
-                .getSingleResultOrNull();
-        CorePlayer corePlayer = plugin.currentSession().find(CorePlayer.class, player.getUniqueId());
+                .getDatabase()
+                .fetchOptionalTeamByName(teamName)
+                .orElse(null);
         if (team == null) {
             source.sendMessage(CoreMessage.teamNotExist(teamName));
             return;
         }
-        StringBuilder message = new StringBuilder();
-        while (args.hasNext()) message.append(args.next()).append(' ');
-        for (CoreTeamMember member : team.getMembers()) {
-            Component messageComponent = Component.empty()
-                    .append(Component.text("["))
-                    .append(CoreMessage.teamMention(team))
-                    .append(Component.text("]"))
-                    .append(Component.space())
-                    .append(CoreMessage.playerMention(corePlayer)
-                            .append(Component.text(" > ").decorate(TextDecoration.BOLD))
-                    )
-                    .append(Component.text(message.toString()));
-            plugin.getServer().getPlayer(member.getLink().getPlayer().getUuid())
-                    .ifPresent(memberPlayer -> memberPlayer.sendMessage(messageComponent));
-        }
-        plugin.commitTransaction();
+        CorePlayer corePlayer = plugin
+                .getDatabase()
+                .fetchPlayerByUuid(player.getUniqueId());
+        StringBuilder messageBuilder = new StringBuilder();
+        while (args.hasNext()) messageBuilder.append(args.next()).append(' ');
+        String message = messageBuilder.substring(0, messageBuilder.length() - 1);
+        Component messageComponent = Component.empty()
+                .append(Component.text("["))
+                .append(CoreMessage.teamMention(team))
+                .append(Component.text("]"))
+                .append(Component.space())
+                .append(CoreMessage.playerMention(corePlayer)
+                        .append(Component.text(" > ").decorate(TextDecoration.BOLD))
+                )
+                .append(Component.text(message));
+        team.getMembershipsIterator().forEachRemaining(member ->
+                plugin.getServer()
+                        .getPlayer(member.getUuid())
+                        .ifPresent(memberPlayer -> memberPlayer.sendMessage(messageComponent))
+        );
         plugin.getServer().getEventManager().fireAndForget(
                 TeamMessageEvent
                         .builder()
-                        .message(message.substring(0, message.length() - 1))
+                        .message(message)
                         .build()
         );
     }

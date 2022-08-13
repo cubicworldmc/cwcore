@@ -7,7 +7,7 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamVerifyEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CoreTeam;
+import space.cubicworld.core.database.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -30,8 +30,8 @@ public class TeamVerifyCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         String teamName = args.next();
-        CoreTeam team = plugin.getTeamByName()
-                .getOptionalModel(teamName)
+        CoreTeam team = plugin.getDatabase()
+                .fetchOptionalTeamByName(teamName)
                 .orElse(null);
         if (team == null) {
             source.sendMessage(CoreMessage.teamNotExist(teamName));
@@ -42,9 +42,7 @@ public class TeamVerifyCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         team.setVerified(true);
-        plugin.beginTransaction();
-        plugin.currentSession().persist(team);
-        plugin.commitTransaction();
+        team.update();
         plugin.getServer().getEventManager().fireAndForget(
                 TeamVerifyEvent
                         .builder()
