@@ -10,6 +10,7 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CoreTeam;
 import space.cubicworld.core.event.TeamCreateEvent;
 import space.cubicworld.core.message.CoreMessage;
@@ -29,21 +30,18 @@ public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSo
     private final LoadingCache<UUID, Optional<Integer>> verifiedCache = CacheBuilder
             .newBuilder()
             .maximumSize(100)
-            .expireAfterAccess(Duration.ofHours(1))
+            .expireAfterAccess(Duration.ofMinutes(10))
             .build(verifiedCacheLoader());
 
     private CacheLoader<UUID, Optional<Integer>> verifiedCacheLoader() {
         return CacheLoader.from(uuid -> {
-            CoreTeam team = plugin.getDatabase()
-                    .fetchTeamQuery(
+            List<CoreTeam> teams = plugin.getDatabase()
+                    .fetchTeams(
                             "SELECT * FROM teams WHERE verified = false AND owner_uuid = ?",
-                            uuid.toString()
+                            uuid
                     );
-            if (team == null) return Optional.empty();
-            if (plugin.getDatabase().getTeamsCache().getIfPresent(team.getId()) == null) {
-                plugin.getDatabase().cache(team);
-            }
-            return Optional.of(team.getId());
+            if (teams.isEmpty()) return Optional.empty();
+            else return Optional.of(teams.get(0).getId());
         });
     }
 
@@ -59,29 +57,28 @@ public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        Optional<CoreTeam> notVerifiedTeam = verifiedCache
+        verifiedCache
                 .get(player.getUniqueId())
-                .map(id -> plugin.getDatabase().fetchTeamById(id));
-        if (notVerifiedTeam.isPresent()) {
-            source.sendMessage(CoreMessage.oneTeamNotVerified(notVerifiedTeam.get()));
-            return;
-        }
-        if (plugin.getDatabase().fetchOptionalTeamByName(teamName).isEmpty()) {
-            CoreTeam team = plugin.getDatabase().newTeam(teamName);
-            team.setOwnerRaw(player.getUniqueId());
-            team.addMembershipRaw(player.getUniqueId());
-            team.update();
-            plugin.getServer().getEventManager().fireAndForget(
-                    TeamCreateEvent
-                            .builder()
-                            .owner(player)
-                            .team(team)
-                            .build()
-            );
-            source.sendMessage(CoreMessage.teamCreated(team));
-        } else {
-            source.sendMessage(CoreMessage.teamAlreadyExist(teamName));
-        }
+                .flatMap(id -> plugin.getDatabase().fetchTeam(id))
+                .ifPresentOrElse(
+                        team -> source.sendMessage(CoreMessage.oneTeamNotVerified(team)),
+                        () -> {
+                            if (plugin.getDatabase().fetchTeam(teamName).isEmpty()) {
+                                CoreTeam team = plugin.getDatabase().newTeam(teamName, player.getUniqueId());
+                                CorePTRelation relation = plugin.getDatabase()
+                                        .fetchPTRelation(player.getUniqueId(), team.getId())
+                                        .orElseThrow();
+                                relation.setValue(CorePTRelation.Value.MEMBERSHIP);
+                                plugin.getDatabase().update(relation);
+                                plugin.getServer().getEventManager().fireAndForget(
+                                        new TeamCreateEvent(player, team)
+                                );
+                                source.sendMessage(CoreMessage.teamCreated(team));
+                            } else {
+                                source.sendMessage(CoreMessage.teamAlreadyExist(teamName));
+                            }
+                        }
+                );
     }
 
     @Override

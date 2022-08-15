@@ -1,13 +1,13 @@
 package space.cubicworld.core.event;
 
-import com.velocitypowered.api.proxy.Player;
 import lombok.Data;
+import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.database.CoreTeam;
 
 @Data
-public class TeamInviteAcceptEvent {
+public class TeamLeaveEvent {
 
-    private final Player invited;
+    private final CorePlayer player;
     private final CoreTeam team;
 
 }

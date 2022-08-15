@@ -7,7 +7,6 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamVerifyEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.database.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -30,27 +29,23 @@ public class TeamVerifyCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             return;
         }
         String teamName = args.next();
-        CoreTeam team = plugin.getDatabase()
-                .fetchOptionalTeamByName(teamName)
-                .orElse(null);
-        if (team == null) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        if (team.isVerified()) {
-            source.sendMessage(CoreMessage.teamAlreadyVerified(team));
-            return;
-        }
-        team.setVerified(true);
-        team.update();
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamVerifyEvent
-                        .builder()
-                        .verifier(source.getSource())
-                        .team(team)
-                        .build()
-        );
-        source.sendMessage(CoreMessage.teamVerifiedSet(team));
+        plugin.getDatabase()
+                .fetchTeam(teamName)
+                .ifPresentOrElse(
+                        team -> {
+                            if (team.isVerified()) {
+                                source.sendMessage(CoreMessage.teamAlreadyVerified(team));
+                                return;
+                            }
+                            team.setVerified(true);
+                            plugin.getDatabase().update(team);
+                            plugin.getServer().getEventManager().fireAndForget(
+                                    new TeamVerifyEvent(source.getSource(), team)
+                            );
+                            source.sendMessage(CoreMessage.teamVerifiedSet(team));
+                        },
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
 

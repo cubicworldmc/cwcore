@@ -2,14 +2,11 @@ package space.cubicworld.core.command.reputation;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.database.CorePlayer;
 
 import java.util.Iterator;
 import java.util.List;
@@ -35,13 +32,11 @@ public class ReputationCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.providePlayerName());
             return;
         }
-        CorePlayer player = plugin
+        source.sendMessage(plugin
                 .getDatabase()
-                .fetchOptionalPlayerByName(name)
-                .orElse(null);
-        source.sendMessage(player == null ?
-                CoreMessage.playerNotExist(name) :
-                CoreMessage.playerReputation(player)
+                .fetchPlayer(name)
+                .map(CoreMessage::playerReputation)
+                .orElseGet(() -> CoreMessage.playerNotExist(name))
         );
     }
 

@@ -6,8 +6,7 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
-import space.cubicworld.core.database.CorePlayerTeamRelation;
-import space.cubicworld.core.database.CoreTeam;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.event.TeamInviteAcceptEvent;
 import space.cubicworld.core.message.CoreMessage;
 
@@ -36,31 +35,26 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CoreTeam team = plugin
-                .getDatabase()
-                .fetchOptionalTeamByName(teamName)
-                .orElse(null);
-        if (team == null) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        CorePlayerTeamRelation relation = plugin
-                .getDatabase()
-                .fetchRelation(player.getUniqueId(), team.getId());
-        if (relation.getRelation() != CorePlayerTeamRelation.Relation.INVITE) {
-            source.sendMessage(CoreMessage.notInvited(team));
-            return;
-        }
-        relation.setRelation(CorePlayerTeamRelation.Relation.MEMBERSHIP);
-        relation.update();
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamInviteAcceptEvent
-                        .builder()
-                        .team(team)
-                        .invited(player)
-                        .build()
-        );
-        source.sendMessage(CoreMessage.inviteAccepted(team));
+        plugin.getDatabase()
+                .fetchTeam(teamName)
+                .ifPresentOrElse(
+                        team -> {
+                            CorePTRelation relation = plugin.getDatabase()
+                                    .fetchPTRelation(player.getUniqueId(), team.getId())
+                                    .orElseThrow();
+                            if (relation.getValue() != CorePTRelation.Value.INVITE) {
+                                source.sendMessage(CoreMessage.notInvited(team));
+                                return;
+                            }
+                            relation.setValue(CorePTRelation.Value.MEMBERSHIP);
+                            plugin.getDatabase().update(relation);
+                            plugin.getServer().getEventManager().fireAndForget(
+                                    new TeamInviteAcceptEvent(player, team)
+                            );
+                            source.sendMessage(CoreMessage.inviteAccepted(team));
+                        },
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
     @Override

@@ -8,10 +8,9 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.event.TeamMessageEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.database.CorePlayer;
-import space.cubicworld.core.database.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -38,40 +37,23 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CoreTeam team = plugin
+        plugin
                 .getDatabase()
-                .fetchOptionalTeamByName(teamName)
-                .orElse(null);
-        if (team == null) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        CorePlayer corePlayer = plugin
-                .getDatabase()
-                .fetchPlayerByUuid(player.getUniqueId());
-        StringBuilder messageBuilder = new StringBuilder();
-        while (args.hasNext()) messageBuilder.append(args.next()).append(' ');
-        String message = messageBuilder.substring(0, messageBuilder.length() - 1);
-        Component messageComponent = Component.empty()
-                .append(Component.text("["))
-                .append(CoreMessage.teamMention(team))
-                .append(Component.text("]"))
-                .append(Component.space())
-                .append(CoreMessage.playerMention(corePlayer)
-                        .append(Component.text(" > ").decorate(TextDecoration.BOLD))
-                )
-                .append(Component.text(message));
-        team.getMembershipsIterator().forEachRemaining(member ->
-                plugin.getServer()
-                        .getPlayer(member.getUuid())
-                        .ifPresent(memberPlayer -> memberPlayer.sendMessage(messageComponent))
-        );
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamMessageEvent
-                        .builder()
-                        .message(message)
-                        .build()
-        );
+                .fetchTeam(teamName)
+                .ifPresentOrElse(
+                        team -> {
+                            CorePlayer corePlayer = plugin.getDatabase()
+                                    .fetchPlayer(player.getUniqueId())
+                                    .orElseThrow();
+                            StringBuilder messageBuilder = new StringBuilder();
+                            while (args.hasNext()) messageBuilder.append(args.next()).append(' ');
+                            String message = messageBuilder.substring(0, messageBuilder.length() - 1);
+                            plugin.getServer().getEventManager().fireAndForget(
+                                    new TeamMessageEvent(corePlayer, team, message)
+                            );
+                        },
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
     @Override

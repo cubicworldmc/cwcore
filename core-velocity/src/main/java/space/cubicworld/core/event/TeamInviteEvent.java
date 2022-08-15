@@ -7,7 +7,6 @@ import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.database.CoreTeam;
 
 @Data
-@Builder
 public class TeamInviteEvent {
 
     private final Player inviter;

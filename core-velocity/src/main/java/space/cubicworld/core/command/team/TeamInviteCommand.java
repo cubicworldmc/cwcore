@@ -40,44 +40,37 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CoreTeam team = plugin
+        plugin
                 .getDatabase()
-                .fetchOptionalTeamByName(teamName)
-                .orElse(null);
-        if (team == null || !team.getOwner().getUuid().equals(player.getUniqueId())) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        CorePlayer invited = plugin
-                .getDatabase()
-                .fetchOptionalPlayerByName(playerName)
-                .orElse(null);
-        if (invited == null) {
-            source.sendMessage(CoreMessage.playerNotExist(playerName));
-            return;
-        }
-        CorePlayerTeamRelation relation = plugin
-                .getDatabase()
-                .fetchRelation(invited.getUuid(), team.getId());
-        if (relation.getRelation() == CorePlayerTeamRelation.Relation.INVITE) {
-            source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
-            return;
-        }
-        if (relation.getRelation() == CorePlayerTeamRelation.Relation.MEMBERSHIP) {
-            source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
-            return;
-        }
-        team.addInvited(invited);
-        team.update();
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamInviteEvent
-                        .builder()
-                        .invited(invited)
-                        .inviter(player)
-                        .team(team)
-                        .build()
-        );
-        source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
+                .fetchTeam(teamName)
+                .filter(team -> team.getOwnerId().equals(player.getUniqueId()))
+                .ifPresentOrElse(
+                        team -> plugin.getDatabase()
+                                .fetchPlayer(playerName)
+                                .ifPresentOrElse(
+                                        invited -> {
+                                            CorePTRelation relation = plugin.getDatabase()
+                                                    .fetchPTRelation(invited.getId(), team.getId())
+                                                    .orElseThrow();
+                                            switch (relation.getValue()) {
+                                                case INVITE ->
+                                                        source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
+                                                case MEMBERSHIP ->
+                                                        source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
+                                                case NONE -> {
+                                                    relation.setValue(CorePTRelation.Value.INVITE);
+                                                    plugin.getDatabase().update(relation);
+                                                    plugin.getServer().getEventManager().fireAndForget(
+                                                            new TeamInviteEvent(player, invited, team)
+                                                    );
+                                                    source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
+                                                }
+                                            }
+                                        },
+                                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
+                                ),
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
     @Override

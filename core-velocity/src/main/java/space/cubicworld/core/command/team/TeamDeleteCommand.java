@@ -9,7 +9,6 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamDeleteEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.database.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -35,29 +34,26 @@ public class TeamDeleteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CoreTeam team = plugin
-                .getDatabase()
-                .fetchOptionalTeamByName(teamName)
-                .orElse(null);
-        if (team == null || !team.getOwner().getUuid().equals(player.getUniqueId())) {
-            source.sendMessage(CoreMessage.teamDeleteCanNot(teamName));
-            return;
-        }
         String nextArg = args.hasNext() ? args.next() : null;
-        if (nextArg == null || (!nextArg.equals("confirm") &&
-                !(nextArg.equals("force") && source.getPermission("cwcore.team.delete.force") == TriState.TRUE))
-        ) {
-            source.sendMessage(CoreMessage.teamDeleteConfirm(team));
-            return;
-        }
-        team.remove();
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamDeleteEvent
-                        .builder()
-                        .team(team)
-                        .build()
-        );
-        source.sendMessage(CoreMessage.teamDeleted(team));
+        boolean force = nextArg != null && nextArg.equals("force") && source.getPermission("cwcore.team.delete.force") == TriState.TRUE;
+        boolean confirm = nextArg != null && nextArg.equals("confirm");
+        plugin.getDatabase()
+                .fetchTeam(teamName)
+                .filter(team -> team.getOwnerId().equals(player.getUniqueId()) && !force)
+                .ifPresentOrElse(
+                        team -> {
+                            if (!force && !confirm){
+                                source.sendMessage(CoreMessage.teamDeleteConfirm(team));
+                                return;
+                            }
+                            plugin.getDatabase().remove(team);
+                            plugin.getServer().getEventManager().fireAndForget(
+                                    new TeamDeleteEvent(team)
+                            );
+                            source.sendMessage(CoreMessage.teamDeleted(team));
+                        },
+                        () -> source.sendMessage(CoreMessage.teamDeleteCanNot(teamName))
+                );
     }
 
     @Override

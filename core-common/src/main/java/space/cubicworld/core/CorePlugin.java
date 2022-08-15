@@ -3,6 +3,7 @@ package space.cubicworld.core;
 import lombok.Getter;
 import org.slf4j.Logger;
 import space.cubicworld.core.database.CoreDatabase;
+import space.cubicworld.core.database.CoreDatabaseImpl;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -21,7 +22,7 @@ public class CorePlugin {
             Logger logger
     ) throws ClassNotFoundException, SQLException, IOException {
         Class.forName("com.mysql.cj.jdbc.Driver");
-        database = new CoreDatabase(
+        database = new CoreDatabaseImpl(
                 mysqlHost,
                 mysqlUsername,
                 mysqlPassword,

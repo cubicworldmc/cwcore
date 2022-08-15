@@ -5,7 +5,6 @@ import lombok.Data;
 import space.cubicworld.core.database.CoreTeam;
 
 @Data
-@Builder
 public class TeamDeleteEvent {
 
     private final CoreTeam team;

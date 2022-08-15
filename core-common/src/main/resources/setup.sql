@@ -1,17 +1,17 @@
 CREATE TABLE IF NOT EXISTS players (
     uuid VARCHAR(36),
     name VARCHAR(16) NOT NULL,
-    reputation INT NOT NULL,
-    global_color INT NOT NULL,
-    selected_team_id INT,
+    reputation INT NOT NULL DEFAULT 0,
+    global_color INT DEFAULT NULL,
+    selected_team_id INT DEFAULT NULL,
     PRIMARY KEY(uuid),
     UNIQUE KEY(name)
 );
 
 CREATE TABLE IF NOT EXISTS teams (
-    id INT NOT NULL, -- actually AUTO_INCREMENT
+    id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(256) NOT NULL,
-    description TEXT,
+    description TEXT DEFAULT NULL,
     verified BOOLEAN NOT NULL DEFAULT FALSE,
     hide BOOLEAN NOT NULL DEFAULT FALSE,
     owner_uuid VARCHAR(36) NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS team_player_relations (
     player_uuid VARCHAR(36),
-    team_id INTEGER NOT NULL,
+    team_id INTEGER,
     relation ENUM("INVITE", "MEMBERSHIP") NOT NULL,
     PRIMARY KEY(player_uuid, team_id),
     FOREIGN KEY(player_uuid) REFERENCES players(uuid) ON DELETE CASCADE,

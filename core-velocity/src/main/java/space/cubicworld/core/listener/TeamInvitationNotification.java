@@ -14,14 +14,15 @@ public class TeamInvitationNotification {
 
     @Subscribe
     public void invite(TeamInviteEvent event) {
-        plugin.getServer().getPlayer(event.getInvited().getUuid())
+        plugin.getServer().getPlayer(event.getInvited().getId())
                 .ifPresent(player -> {
                     try {
                         VelocityCoreCommandSource.sendLocaleMessage(player,
                                 CoreMessage.teamInvite(
                                         plugin
                                                 .getDatabase()
-                                                .fetchPlayerByUuid(event.getInviter().getUniqueId()),
+                                                .fetchPlayer(event.getInviter().getUniqueId())
+                                                .orElseThrow(),
                                         event.getTeam()
                                 )
                         );
