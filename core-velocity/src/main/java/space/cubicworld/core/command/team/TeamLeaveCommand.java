@@ -8,7 +8,6 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CorePlayer;
-import space.cubicworld.core.database.CoreTeam;
 import space.cubicworld.core.event.TeamLeaveEvent;
 import space.cubicworld.core.message.CoreMessage;
 

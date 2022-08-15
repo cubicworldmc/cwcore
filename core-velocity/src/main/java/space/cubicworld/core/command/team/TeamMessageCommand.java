@@ -2,8 +2,6 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;

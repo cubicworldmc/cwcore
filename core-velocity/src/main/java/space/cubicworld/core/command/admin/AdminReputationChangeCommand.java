@@ -8,7 +8,10 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
 
 @CoreCommandAnnotation(
         name = "reputation",

@@ -4,7 +4,6 @@ import com.velocitypowered.api.command.SimpleCommand;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 
-import java.util.Arrays;
 import java.util.List;
 
 @RequiredArgsConstructor

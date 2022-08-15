@@ -3,7 +3,6 @@ package space.cubicworld.core.database;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 

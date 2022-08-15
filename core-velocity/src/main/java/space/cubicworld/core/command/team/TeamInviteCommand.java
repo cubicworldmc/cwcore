@@ -6,9 +6,9 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.event.TeamInviteEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.database.*;
 
 import java.util.Collections;
 import java.util.Iterator;
