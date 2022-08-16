@@ -157,7 +157,7 @@ class CoreRelationCache {
                 return playerSet.set.stream().limit(count).toList();
             }
         }
-        else if (playerSet.isAll()){
+        if (playerSet != null && playerSet.isAll()){
             return Collections.unmodifiableCollection(playerSet.set);
         }
         try (Connection connection = database.getConnection();

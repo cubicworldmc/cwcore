@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.Subscribe;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.event.RealJoinEvent;
 import space.cubicworld.core.event.TeamInviteEvent;
 import space.cubicworld.core.message.CoreMessage;
 
@@ -30,6 +31,11 @@ public class TeamInvitationNotification {
                         plugin.getLogger().error("Failed to fetch player:", e);
                     }
                 });
+    }
+
+    @Subscribe
+    public void join(RealJoinEvent event) {
+        
     }
 
 }
