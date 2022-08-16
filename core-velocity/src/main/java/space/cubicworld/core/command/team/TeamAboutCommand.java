@@ -6,7 +6,6 @@ import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CoreTeam;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -28,14 +27,12 @@ public class TeamAboutCommand extends AbstractCoreCommand<VelocityCoreCommandSou
             return;
         }
         String teamName = args.next();
-        CoreTeam team = plugin.getTeamByName()
-                .getOptionalModel(teamName)
-                .orElse(null);
-        if (team == null) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        source.sendMessage(CoreMessage.teamAbout(team));
+        plugin.getDatabase()
+                .fetchTeam(teamName)
+                .ifPresentOrElse(
+                        team -> source.sendMessage(CoreMessage.teamAbout(team)),
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
     @Override

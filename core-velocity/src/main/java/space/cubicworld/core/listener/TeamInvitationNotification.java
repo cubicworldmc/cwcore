@@ -4,9 +4,9 @@ import com.velocitypowered.api.event.Subscribe;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.event.RealJoinEvent;
 import space.cubicworld.core.event.TeamInviteEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
 
 @RequiredArgsConstructor
 public class TeamInvitationNotification {
@@ -15,19 +15,27 @@ public class TeamInvitationNotification {
 
     @Subscribe
     public void invite(TeamInviteEvent event) {
-        plugin.getServer().getPlayer(event.getInvited().getUuid())
+        plugin.getServer().getPlayer(event.getInvited().getId())
                 .ifPresent(player -> {
-                    plugin.beginTransaction();
-                    VelocityCoreCommandSource.sendLocaleMessage(player,
-                            CoreMessage.teamInvite(
-                                    plugin
-                                            .currentSession()
-                                            .find(CorePlayer.class, event.getInviter().getUniqueId()),
-                                    event.getTeam()
-                            )
-                    );
-                    plugin.commitTransaction();
+                    try {
+                        VelocityCoreCommandSource.sendLocaleMessage(player,
+                                CoreMessage.teamInvite(
+                                        plugin
+                                                .getDatabase()
+                                                .fetchPlayer(event.getInviter().getUniqueId())
+                                                .orElseThrow(),
+                                        event.getTeam()
+                                )
+                        );
+                    } catch (Exception e) {
+                        plugin.getLogger().error("Failed to fetch player:", e);
+                    }
                 });
+    }
+
+    @Subscribe
+    public void join(RealJoinEvent event) {
+        
     }
 
 }

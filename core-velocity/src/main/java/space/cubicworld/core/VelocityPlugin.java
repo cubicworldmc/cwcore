@@ -10,24 +10,21 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import lombok.Cleanup;
 import lombok.Getter;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 import org.slf4j.Logger;
-import space.cubicworld.core.cache.CoreSecondaryCache;
 import space.cubicworld.core.command.VelocityCommandHelper;
 import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.command.admin.AdminCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
-import space.cubicworld.core.listener.VelocityJoinListener;
-import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
-import space.cubicworld.core.model.CoreTeam;
+import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.listener.TeamInvitationNotification;
+import space.cubicworld.core.listener.VelocityJoinListener;
+import space.cubicworld.core.listener.VelocityRealJoin;
+import space.cubicworld.core.message.CoreMessage;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.util.UUID;
+import java.sql.SQLException;
 
 @Plugin(
         id = "cwcore",
@@ -43,15 +40,12 @@ public class VelocityPlugin {
     private final FileConfig config;
     private final Logger logger;
 
-    private final CoreSecondaryCache<String, UUID, CorePlayer> playerByName;
-    private final CoreSecondaryCache<String, Integer, CoreTeam> teamByName;
-
     @Inject
     public VelocityPlugin(
             ProxyServer server,
             @DataDirectory Path dataDirectory,
             Logger logger
-    ) throws ClassNotFoundException, IOException {
+    ) throws ClassNotFoundException, IOException, SQLException {
         Class.forName("com.electronwill.nightconfig.yaml.YamlFormat");
         this.server = server;
         this.logger = logger;
@@ -85,19 +79,9 @@ public class VelocityPlugin {
                 config.get("mysql.host"),
                 config.get("mysql.username"),
                 config.get("mysql.password"),
-                config.get("mysql.database")
-        );
-        playerByName = new CoreSecondaryCache<>(
-                core,
-                CorePlayer.class,
-                "FROM CorePlayer p WHERE p.name = :key",
-                CorePlayer::getUuid
-        );
-        teamByName = new CoreSecondaryCache<>(
-                core,
-                CoreTeam.class,
-                "FROM CoreTeam t WHERE t.name = :key",
-                CoreTeam::getId
+                config.get("mysql.database"),
+                getClass().getClassLoader(),
+                logger
         );
     }
 
@@ -108,44 +92,20 @@ public class VelocityPlugin {
         new VelocityCoreCommand(new TeamCommand(this)).register(this);
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
+        server.getEventManager().register(this, new VelocityRealJoin(this));
     }
 
     @Subscribe
-    public void shutdown(ProxyShutdownEvent event) {
-        core.getHibernateSessionFactory().close();
-    }
+    public void shutdown(ProxyShutdownEvent event) throws Exception {
 
-    /**
-     * Ensures that transaction is active
-     *
-     * @return Already active transaction
-     */
-    public Transaction beginTransaction() {
-        return core.beginTransaction();
-    }
-
-    /**
-     * Ensures that transaction is committed
-     *
-     * @return Already committed transaction
-     */
-    public Transaction commitTransaction() {
-        return core.commitTransaction();
-    }
-
-    /**
-     * Macros for: getCore().getHibernateSessionFactory().getCurrentSession()
-     *
-     * @return Current hibernate session
-     */
-    public Session currentSession() {
-        return core
-                .getHibernateSessionFactory()
-                .getCurrentSession();
     }
 
     public VelocityCommandHelper commandHelper() {
         return new VelocityCommandHelper(this);
+    }
+
+    public CoreDatabase getDatabase() {
+        return core.getDatabase();
     }
 
 }

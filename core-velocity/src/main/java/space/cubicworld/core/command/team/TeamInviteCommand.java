@@ -6,9 +6,9 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.event.TeamInviteEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.*;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -40,45 +40,37 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CoreTeam team = plugin
-                .getTeamByName()
-                .getOptionalModel(teamName)
-                .orElse(null);
-        if (team == null || !team.getOwner().getUuid().equals(player.getUniqueId())) {
-            source.sendMessage(CoreMessage.teamNotExist(teamName));
-            return;
-        }
-        CorePlayer invited = plugin
-                .getPlayerByName()
-                .getOptionalModel(playerName)
-                .orElse(null);
-        if (invited == null) {
-            source.sendMessage(CoreMessage.playerNotExist(playerName));
-            return;
-        }
-        CorePlayerTeamLink link = new CorePlayerTeamLink(invited, team);
-        plugin.beginTransaction();
-        if (plugin.currentSession().get(CoreTeamInvitation.class, link) != null) {
-            source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
-            return;
-        }
-        if (plugin.currentSession().get(CoreTeamMember.class, link) != null) {
-            source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
-            return;
-        }
-        CoreTeamInvitation invitation = new CoreTeamInvitation(link);
-        team.getInvitations().add(invitation);
-        plugin.currentSession().persist(invitation);
-        plugin.commitTransaction();
-        plugin.getServer().getEventManager().fireAndForget(
-                TeamInviteEvent
-                        .builder()
-                        .invited(invited)
-                        .inviter(player)
-                        .team(team)
-                        .build()
-        );
-        source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
+        plugin
+                .getDatabase()
+                .fetchTeam(teamName)
+                .filter(team -> team.getOwnerId().equals(player.getUniqueId()))
+                .ifPresentOrElse(
+                        team -> plugin.getDatabase()
+                                .fetchPlayer(playerName)
+                                .ifPresentOrElse(
+                                        invited -> {
+                                            CorePTRelation relation = plugin.getDatabase()
+                                                    .fetchPTRelation(invited.getId(), team.getId())
+                                                    .orElseThrow();
+                                            switch (relation.getValue()) {
+                                                case INVITE ->
+                                                        source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
+                                                case MEMBERSHIP ->
+                                                        source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
+                                                case NONE -> {
+                                                    relation.setValue(CorePTRelation.Value.INVITE);
+                                                    plugin.getDatabase().update(relation);
+                                                    plugin.getServer().getEventManager().fireAndForget(
+                                                            new TeamInviteEvent(player, invited, team)
+                                                    );
+                                                    source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
+                                                }
+                                            }
+                                        },
+                                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
+                                ),
+                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
+                );
     }
 
     @Override

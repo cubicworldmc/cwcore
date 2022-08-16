@@ -6,11 +6,10 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
+import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.event.TeamLeaveEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
-import space.cubicworld.core.model.CorePlayerTeamLink;
-import space.cubicworld.core.model.CoreTeam;
-import space.cubicworld.core.model.CoreTeamMember;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -36,30 +35,31 @@ public class TeamLeaveCommand extends AbstractCoreCommand<VelocityCoreCommandSou
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        plugin.beginTransaction();
-        CorePlayer corePlayer = plugin.currentSession().find(CorePlayer.class, player.getUniqueId());
-        CoreTeam team = plugin
-                .currentSession()
-                .createQuery(
-                        """
-                                FROM CoreTeam team
-                                INNER JOIN CoreTeamMember member ON member.link.player = :player
-                                WHERE NOT team.owner = :player AND team.name = :name
-                                """,
-                        CoreTeam.class
-                )
-                .setParameter("player", corePlayer)
-                .setParameter("name", teamName)
-                .getSingleResultOrNull();
-        if (team == null) {
-            source.sendMessage(CoreMessage.teamLeaveCanNot(teamName));
-            return;
-        }
-        plugin.currentSession().remove(new CoreTeamMember(
-                new CorePlayerTeamLink(corePlayer, team))
-        );
-        plugin.commitTransaction();
-        source.sendMessage(CoreMessage.teamLeaved(team));
+        CorePlayer corePlayer = plugin
+                .getDatabase()
+                .fetchPlayer(player.getUniqueId())
+                .orElseThrow();
+        plugin
+                .getDatabase()
+                .fetchTeam(teamName)
+                .filter(team -> !team.getOwnerId().equals(corePlayer.getId()))
+                .ifPresentOrElse(
+                        team -> {
+                            CorePTRelation relation = plugin
+                                    .getDatabase()
+                                    .fetchPTRelation(corePlayer.getId(), team.getId())
+                                    .orElseThrow();
+                            if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
+                                source.sendMessage(CoreMessage.teamLeaveCanNot(teamName));
+                            }
+                            relation.setValue(CorePTRelation.Value.NONE);
+                            plugin.getDatabase().update(relation);
+                            source.sendMessage(CoreMessage.teamLeaved(team));
+                            plugin.getServer().getEventManager()
+                                    .fireAndForget(new TeamLeaveEvent(corePlayer, team));
+                        },
+                        () -> source.sendMessage(CoreMessage.teamLeaveCanNot(teamName))
+                );
     }
 
     @Override

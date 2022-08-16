@@ -1,5 +1,6 @@
 package space.cubicworld.core.message;
 
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -11,15 +12,15 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
-import space.cubicworld.core.model.CorePlayer;
-import space.cubicworld.core.model.CoreTeam;
-import space.cubicworld.core.model.CoreTeamMember;
+import space.cubicworld.core.database.CorePTRelation;
+import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.database.CoreTeam;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
 
@@ -98,7 +99,7 @@ public class CoreMessage {
         return text(player.getName())
                 .hoverEvent(HoverEvent.showEntity(
                         Key.key("minecraft", "player"),
-                        player.getUuid()
+                        player.getId()
                 ))
                 .clickEvent(ClickEvent.runCommand("/tell %s".formatted(player.getName())))
                 .color(color == null ? MENTION_COLOR : color);
@@ -183,16 +184,23 @@ public class CoreMessage {
                 .color(SUCCESS_COLOR);
     }
 
+    @SneakyThrows
     public Component teamAbout(CoreTeam team) {
-        Component members = empty();
-        Iterator<CoreTeamMember> memberIterator = team.getMembers().iterator();
-        int counter = 0;
-        while (memberIterator.hasNext()) {
-            if (counter++ == 10) {
-                members = members.append(text("..."));
-            } else {
-                members = members.append(playerMention(memberIterator.next().getLink().getPlayer()));
-                if (memberIterator.hasNext()) members = members.append(text(", "));
+        Component membersMessage = empty();
+        List<CorePlayer> members = team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
+        if (!members.isEmpty()) {
+            for (int i = 0; ; ++i) {
+                if (i == 10) {
+                    membersMessage = membersMessage.append(text("..."));
+                    break;
+                }
+                CorePlayer member = members.get(i);
+                membersMessage = membersMessage.append(playerMention(member));
+                if (i < members.size() - 1) {
+                    membersMessage = membersMessage.append(text(", "));
+                } else {
+                    break;
+                }
             }
         }
         return empty()
@@ -211,7 +219,7 @@ public class CoreMessage {
                 )
                 .append(newline())
                 .append(translatable("cwcore.team.about.members")
-                        .args(members)
+                        .args(membersMessage)
                 );
     }
 

@@ -1,14 +1,17 @@
 package space.cubicworld.core.command.admin;
 
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.model.CorePlayer;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
 
 @CoreCommandAnnotation(
         name = "reputation",
@@ -22,6 +25,7 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
     private final VelocityPlugin plugin;
 
     @Override
+    @SneakyThrows
     public void execute(VelocityCoreCommandSource source, Iterator<String> args) {
         if (!args.hasNext()) {
             source.sendMessage(CoreMessage.providePlayerName());
@@ -36,25 +40,24 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
             return;
         }
         int amount = Integer.parseInt(args.next());
-        Optional<CorePlayer> optionalPlayer = plugin.getPlayerByName().getOptionalModel(playerName);
-        if (optionalPlayer.isEmpty()) {
-            source.sendMessage(CoreMessage.playerNotExist(playerName));
-            return;
-        }
-        CorePlayer player = optionalPlayer.get();
-        int newReputation = player.getReputation();
-        switch (operation.toLowerCase(Locale.ROOT)) {
-            case "+", "add" -> newReputation += amount;
-            case "-", "sub" -> newReputation -= amount;
-            case "=", "set" -> newReputation = amount;
-        }
-        if (newReputation != player.getReputation()) {
-            player.setReputation(newReputation);
-            plugin.beginTransaction();
-            plugin.currentSession().merge(player);
-            plugin.commitTransaction();
-        }
-        source.sendMessage(CoreMessage.playerReputation(player));
+        plugin.getDatabase()
+                .fetchPlayer(playerName)
+                .ifPresentOrElse(
+                        player -> {
+                            int newReputation = player.getReputation();
+                            switch (operation.toLowerCase(Locale.ROOT)) {
+                                case "+", "add" -> newReputation += amount;
+                                case "-", "sub" -> newReputation -= amount;
+                                case "=", "set" -> newReputation = amount;
+                            }
+                            if (newReputation != player.getReputation()) {
+                                player.setReputation(newReputation);
+                                plugin.getDatabase().update(player);
+                            }
+                            source.sendMessage(CoreMessage.playerReputation(player));
+                        },
+                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
+                );
     }
 
     @Override
