@@ -13,9 +13,12 @@ import space.cubicworld.core.util.ImmutablePair;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 class CoreRelationCache {
 
@@ -23,10 +26,26 @@ class CoreRelationCache {
 
     @Getter
     static class RelationCacheByValueSet<T> {
+
+        public static final int UNKNOWN_SIZE = -1;
+
+        private final Object lock = new Object[0];
+
         private final Set<T> set = Collections.synchronizedSet(new HashSet<>());
-        @Setter(onMethod_ = @Synchronized)
-        @Getter(onMethod_ = @Synchronized)
-        private boolean all;
+        @Setter(onMethod_ = @Synchronized("lock"))
+        @Getter(onMethod_ = @Synchronized("lock"))
+        private int size;
+
+        public void decrementSize() {
+            synchronized (lock) {
+                if (size != UNKNOWN_SIZE) size -= 1;
+            }
+        }
+
+        public boolean isAll() {
+            return set.size() == size;
+        }
+
     }
 
     @Getter
@@ -36,21 +55,25 @@ class CoreRelationCache {
 
         public void remove(UUID player, int team) {
             RelationCacheByValueSet<Integer> teamSet = teams.get(player);
-            if (teamSet != null) teamSet.set.remove(team);
+            if (teamSet != null) {
+                teamSet.set.remove(team);
+                teamSet.decrementSize();
+            }
             RelationCacheByValueSet<UUID> playerSet = players.get(team);
-            if (playerSet != null) playerSet.set.remove(player);
+            if (playerSet != null) {
+                playerSet.set.remove(player);
+                playerSet.decrementSize();
+            }
         }
 
         public void unCache(UUID player, int team) {
             RelationCacheByValueSet<Integer> teamSet = teams.get(player);
             if (teamSet != null) {
                 teamSet.set.remove(team);
-                teamSet.setAll(false);
             }
             RelationCacheByValueSet<UUID> playerSet = players.get(team);
             if (playerSet != null) {
                 playerSet.set.remove(player);
-                playerSet.setAll(false);
             }
         }
 
@@ -118,67 +141,110 @@ class CoreRelationCache {
 
     @SneakyThrows
     public Collection<Integer> fetchTeams(CorePTRelation.Value value, UUID player, int count) {
-        RelationCacheByValueSet<Integer> teamsSet = byValueCache.get(value).getTeams().get(player);
-        if (count != ALL) {
-            if (teamsSet != null && teamsSet.set.size() >= count) {
-                return teamsSet.set.stream().limit(count).toList();
-            }
-        }
-        else if (teamsSet.isAll()){
-            return Collections.unmodifiableCollection(teamsSet.set);
-        }
-        try (Connection connection = database.getConnection();
-            PreparedStatement statement = connection.prepareStatement("""
-                    SELECT team_id FROM team_player_relations WHERE relation = ? AND player_uuid = ?
-                    """ + (count == ALL ? "" : " LIMIT ?")
-            )) {
-            statement.setString(1, value.name());
-            statement.setString(2, player.toString());
-            if (count != ALL) statement.setInt(3, count);
-            ResultSet resultSet = statement.executeQuery();
-            List<Integer> teams = new ArrayList<>();
-            while (resultSet.next()) {
-                int team = resultSet.getInt(1);
-                cacheIfNeed(player, team, value);
-                teams.add(team);
-            }
-            resultSet.close();
-            RelationCacheByValueSet<Integer> newTeamSet = byValueCache.get(value).getTeams().get(player);
-            if (newTeamSet != null) newTeamSet.setAll(count == ALL);
-            return Collections.unmodifiableCollection(teams);
-        }
+        return fetch(
+                value, player, count,
+                byValueCache.get(value).getTeams().computeIfAbsent(player, key -> new RelationCacheByValueSet<>()),
+                o -> (int) o,
+                key -> cacheIfNeed(player, key, value),
+                "SELECT player_uuid FROM team_player_relations WHERE relation = ? AND team_id = ?"
+        );
     }
 
     @SneakyThrows
     public Collection<UUID> fetchPlayers(CorePTRelation.Value value, int team, int count) {
-        RelationCacheByValueSet<UUID> playerSet = byValueCache.get(value).getPlayers().get(team);
+        return fetch(
+                value, team, count,
+                byValueCache.get(value).getPlayers().computeIfAbsent(team, key -> new RelationCacheByValueSet<>()),
+                o -> UUID.fromString(o.toString()),
+                key -> cacheIfNeed(key, team, value),
+                "SELECT player_uuid FROM team_player_relations WHERE relation = ? AND team_id = ?"
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T, V> Collection<T> fetch(
+            CorePTRelation.Value value,
+            V key,
+            int count,
+            RelationCacheByValueSet<T> cacheByValueSet,
+            Function<Object, T> parseFunction,
+            Consumer<T> cache,
+            String sql
+    ) throws SQLException {
+        if (value == CorePTRelation.Value.NONE) {
+            throw new IllegalArgumentException("None value is not supported");
+        }
         if (count != ALL) {
-            if (playerSet != null && playerSet.set.size() >= count) {
-                return playerSet.set.stream().limit(count).toList();
+            if (cacheByValueSet.set.size() >= count) {
+                return cacheByValueSet.set.stream().limit(count).toList();
             }
         }
-        if (playerSet != null && playerSet.isAll()){
-            return Collections.unmodifiableCollection(playerSet.set);
+        if (cacheByValueSet.isAll()) {
+            return Collections.unmodifiableCollection(cacheByValueSet.set);
         }
         try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                    SELECT player_uuid FROM team_player_relations WHERE relation = ? AND team_id = ?
-                    """ + (count == ALL ? "" : " LIMIT ?")
-             )) {
+             PreparedStatement statement = connection.prepareStatement(
+                     sql + (count == ALL ? "" : " LIMIT ?")
+             )
+        ) {
             statement.setString(1, value.name());
-            statement.setInt(2, team);
+            statement.setObject(2, key instanceof UUID ? key.toString() : key);
             if (count != ALL) statement.setInt(3, count);
             ResultSet resultSet = statement.executeQuery();
-            List<UUID> players = new ArrayList<>();
+            List<T> result = new ArrayList<>();
             while (resultSet.next()) {
-                UUID player = UUID.fromString(resultSet.getString(1));
-                cacheIfNeed(player, team, value);
-                players.add(player);
+                T resultKey = parseFunction.apply(resultSet.getObject(1));
+                cache.accept(resultKey);
+                result.add(resultKey);
             }
             resultSet.close();
-            RelationCacheByValueSet<UUID> newPlayerSet = byValueCache.get(value).getPlayers().get(team);
-            if (newPlayerSet != null) newPlayerSet.setAll(count == ALL);
-            return Collections.unmodifiableCollection(players);
+            if (count == ALL || result.size() < count) cacheByValueSet.setSize(result.size());
+            return Collections.unmodifiableCollection(result);
+        }
+    }
+
+    @SneakyThrows
+    public int fetchTeamsSize(CorePTRelation.Value value, UUID player) {
+        return fetchSize(
+                value,
+                player,
+                byValueCache
+                        .get(value)
+                        .getTeams()
+                        .computeIfAbsent(player, key -> new RelationCacheByValueSet<>()),
+                "SELECT COUNT(*) FROM team_player_relations WHERE value = ? AND player_uuid = ?"
+        );
+    }
+
+    @SneakyThrows
+    public int fetchPlayersSize(CorePTRelation.Value value, int team) {
+        return fetchSize(
+                value,
+                team,
+                byValueCache
+                        .get(value)
+                        .getPlayers()
+                        .computeIfAbsent(team, key -> new RelationCacheByValueSet<>()),
+                "SELECT COUNT(*) FROM team_player_relations WHERE value = ? AND team_id = ?"
+        );
+    }
+
+    private <T, V> int fetchSize(
+            CorePTRelation.Value value,
+            V key,
+            RelationCacheByValueSet<T> cacheSet,
+            String sql
+    ) throws SQLException {
+        if (cacheSet.isAll()) return cacheSet.getSize();
+        try (Connection connection = database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, value.name());
+            statement.setObject(2, key instanceof UUID ? key.toString() : key);
+            ResultSet resultSet = statement.executeQuery();
+            int count = resultSet.next() ? resultSet.getInt(1) : 0;
+            resultSet.close();
+            cacheSet.setSize(count);
+            return count;
         }
     }
 
