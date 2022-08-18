@@ -4,10 +4,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.SneakyThrows;
-import lombok.Synchronized;
+import lombok.*;
 import space.cubicworld.core.util.ImmutablePair;
 
 import java.sql.Connection;
@@ -25,6 +22,7 @@ class CoreRelationCache {
     public static final int ALL = -1;
 
     @Getter
+    @ToString
     static class RelationCacheByValueSet<T> {
 
         public static final int UNKNOWN_SIZE = -1;
@@ -34,7 +32,23 @@ class CoreRelationCache {
         private final Set<T> set = Collections.synchronizedSet(new HashSet<>());
         @Setter(onMethod_ = @Synchronized("lock"))
         @Getter(onMethod_ = @Synchronized("lock"))
-        private int size;
+        private int size = UNKNOWN_SIZE;
+
+        public void addObject(T object) {
+            set.add(object);
+            incrementSize();
+        }
+
+        public void removeObject(T object) {
+            set.remove(object);
+            decrementSize();
+        }
+
+        public void incrementSize() {
+            synchronized (lock) {
+                if (size != UNKNOWN_SIZE) size += 1;
+            }
+        }
 
         public void decrementSize() {
             synchronized (lock) {
@@ -56,13 +70,11 @@ class CoreRelationCache {
         public void remove(UUID player, int team) {
             RelationCacheByValueSet<Integer> teamSet = teams.get(player);
             if (teamSet != null) {
-                teamSet.set.remove(team);
-                teamSet.decrementSize();
+                teamSet.removeObject(team);
             }
             RelationCacheByValueSet<UUID> playerSet = players.get(team);
             if (playerSet != null) {
-                playerSet.set.remove(player);
-                playerSet.decrementSize();
+                playerSet.removeObject(player);
             }
         }
 
@@ -77,9 +89,14 @@ class CoreRelationCache {
             }
         }
 
-        public void put(UUID player, int team) {
+        public void cache(UUID player, int team) {
             teams.computeIfAbsent(player, key -> new RelationCacheByValueSet<>()).set.add(team);
             players.computeIfAbsent(team, key -> new RelationCacheByValueSet<>()).set.add(player);
+        }
+
+        public void put(UUID player, int team) {
+            teams.computeIfAbsent(player, key -> new RelationCacheByValueSet<>()).addObject(team);
+            players.computeIfAbsent(team, key -> new RelationCacheByValueSet<>()).addObject(player);
         }
     }
 
@@ -129,7 +146,7 @@ class CoreRelationCache {
                             CorePTRelation.Value.NONE
             );
             resultSet.close();
-            byValueCache.get(relation.getValue()).put(key.getFirst(), key.getSecond());
+            byValueCache.get(relation.getValue()).cache(key.getFirst(), key.getSecond());
             return relation;
         }
     }
@@ -146,7 +163,7 @@ class CoreRelationCache {
                 byValueCache.get(value).getTeams().computeIfAbsent(player, key -> new RelationCacheByValueSet<>()),
                 o -> (int) o,
                 key -> cacheIfNeed(player, key, value),
-                "SELECT player_uuid FROM team_player_relations WHERE relation = ? AND team_id = ?"
+                "SELECT team_id FROM team_player_relations WHERE relation = ? AND player_uuid = ?"
         );
     }
 
@@ -161,7 +178,6 @@ class CoreRelationCache {
         );
     }
 
-    @SuppressWarnings("unchecked")
     private <T, V> Collection<T> fetch(
             CorePTRelation.Value value,
             V key,
@@ -180,7 +196,7 @@ class CoreRelationCache {
             }
         }
         if (cacheByValueSet.isAll()) {
-            return Collections.unmodifiableCollection(cacheByValueSet.set);
+            return Collections.unmodifiableSet(cacheByValueSet.set);
         }
         try (Connection connection = database.getConnection();
              PreparedStatement statement = connection.prepareStatement(
@@ -197,9 +213,10 @@ class CoreRelationCache {
                 cache.accept(resultKey);
                 result.add(resultKey);
             }
+            System.out.println(result);
             resultSet.close();
             if (count == ALL || result.size() < count) cacheByValueSet.setSize(result.size());
-            return Collections.unmodifiableCollection(result);
+            return Collections.unmodifiableList(result);
         }
     }
 
@@ -212,7 +229,7 @@ class CoreRelationCache {
                         .get(value)
                         .getTeams()
                         .computeIfAbsent(player, key -> new RelationCacheByValueSet<>()),
-                "SELECT COUNT(*) FROM team_player_relations WHERE value = ? AND player_uuid = ?"
+                "SELECT COUNT(*) FROM team_player_relations WHERE relation = ? AND player_uuid = ?"
         );
     }
 
@@ -225,7 +242,7 @@ class CoreRelationCache {
                         .get(value)
                         .getPlayers()
                         .computeIfAbsent(team, key -> new RelationCacheByValueSet<>()),
-                "SELECT COUNT(*) FROM team_player_relations WHERE value = ? AND team_id = ?"
+                "SELECT COUNT(*) FROM team_player_relations WHERE relation = ? AND team_id = ?"
         );
     }
 
@@ -257,7 +274,7 @@ class CoreRelationCache {
                     team
             );
             relation.setValue(value);
-            byValueCache.get(value).put(player, team);
+            byValueCache.computeIfAbsent(value, it -> new RelationCacheByValue()).cache(player, team);
             relations.put(new ImmutablePair<>(player, team), relation);
         }
     }

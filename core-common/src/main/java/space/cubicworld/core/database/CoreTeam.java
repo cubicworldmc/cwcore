@@ -43,4 +43,6 @@ public interface CoreTeam {
         return getRelations(value, CoreRelationCache.ALL);
     }
 
+    int getRelationsCount(CorePTRelation.Value value);
+
 }

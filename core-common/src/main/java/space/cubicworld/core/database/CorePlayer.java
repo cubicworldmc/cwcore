@@ -39,4 +39,6 @@ public interface CorePlayer {
         return getRelations(value, CoreRelationCache.ALL);
     }
 
+    int getRelationsCount(CorePTRelation.Value value);
+
 }

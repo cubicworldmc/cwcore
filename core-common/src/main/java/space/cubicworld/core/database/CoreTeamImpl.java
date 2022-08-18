@@ -54,4 +54,11 @@ class CoreTeamImpl implements CoreTeam {
                 .map(id -> database.fetchPlayer(id).orElseThrow())
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public int getRelationsCount(CorePTRelation.Value value) {
+        return database
+                .getRelationCache()
+                .fetchPlayersSize(value, id);
+    }
 }

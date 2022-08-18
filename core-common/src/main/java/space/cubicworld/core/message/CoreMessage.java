@@ -4,6 +4,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -34,6 +35,7 @@ public class CoreMessage {
     private final TextColor SUCCESS_COLOR = NamedTextColor.WHITE;
     private final TextColor INFORMATION_COLOR = NamedTextColor.WHITE;
     private final TextColor CLICKABLE_COLOR = NamedTextColor.GOLD;
+    private final TextColor INACTIVE_COLOR = NamedTextColor.GRAY;
 
     public void register(ClassLoader classLoader, Logger logger) {
         TranslationRegistry registry = TranslationRegistry.create(Key.key("cwcore", "main"));
@@ -61,9 +63,20 @@ public class CoreMessage {
     }
 
     private Component confirm() {
+        return clickable(translatable("cwcore.command.confirm"));
+    }
+
+    public Component listElement(Component component) {
+        return empty()
+                .append(text("-").color(INACTIVE_COLOR))
+                .append(space())
+                .append(component);
+    }
+
+    public Component clickable(Component component) {
         return empty()
                 .append(text("[").color(INFORMATION_COLOR))
-                .append(translatable("cwcore.command.confirm").color(CLICKABLE_COLOR))
+                .append(component.colorIfAbsent(CLICKABLE_COLOR))
                 .append(text("]").color(INFORMATION_COLOR));
     }
 
@@ -261,5 +274,58 @@ public class CoreMessage {
                 .args(teamMention(team))
                 .color(SUCCESS_COLOR);
     }
+
+    public Component teamInviteJoinNotification(int count) {
+        return translatable("cwcore.team.invite.join.notification")
+                .args(
+                        text(count).color(MENTION_COLOR),
+                        clickable(text("/team invites"))
+                                .clickEvent(ClickEvent.runCommand("/team invites"))
+                )
+                .color(INFORMATION_COLOR);
+    }
+
+    public Component teamInvitesPage(CorePlayer player, int page) {
+        if (page < -1) throw new IllegalArgumentException("Page is negative");
+        int invites = player.getRelationsCount(CorePTRelation.Value.INVITE);
+        int totalPages = invites / 5 + (invites % 5 == 0 ? 0 : 1);
+        boolean previous = page != 0;
+        boolean next = page + 1 != totalPages;
+        List<Component> teams = player
+                .getAllRelations(CorePTRelation.Value.INVITE)
+                .stream()
+                .skip(page * 5)
+                .map(team ->
+                        listElement(teamMention(team) // should it be mention or clickable object?
+                                .clickEvent(ClickEvent.runCommand("/team accept " + team.getName()))
+                                .append(newline()))
+                )
+                .toList();
+        return teams.isEmpty() ?
+                translatable("cwcore.team.invites.nothing").color(FAIL_COLOR) :
+                empty()
+                        .append(
+                                translatable("cwcore.team.invites.header")
+                                        .args(
+                                                text(page + 1).color(MENTION_COLOR),
+                                                text(totalPages).color(MENTION_COLOR)
+                                        )
+                                        .color(INFORMATION_COLOR)
+                        )
+                        .append(newline())
+                        .append(join(JoinConfiguration.noSeparators(), teams))
+                        .append(
+                                clickable(translatable("cwcore.team.invites.previous")
+                                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                ).clickEvent(previous ? ClickEvent.runCommand("/team invites " + page) : null)
+                        )
+                        .append(space())
+                        .append(
+                                clickable(translatable("cwcore.team.invites.next")
+                                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                ).clickEvent(next ? ClickEvent.runCommand("/team invites " + (page + 2)) : null)
+                        );
+    }
+
 
 }

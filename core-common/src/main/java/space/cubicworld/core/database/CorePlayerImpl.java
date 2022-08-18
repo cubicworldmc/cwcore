@@ -53,11 +53,18 @@ class CorePlayerImpl implements CorePlayer {
 
     @Override
     public @NotNull List<CoreTeam> getRelations(CorePTRelation.Value value, int count) {
-        return database.getRelationCache()
+        return database
+                .getRelationCache()
                 .fetchTeams(value, id, count)
                 .stream()
                 .map(id -> database.fetchTeam(id).orElseThrow())
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public int getRelationsCount(CorePTRelation.Value value) {
+        return database
+                .getRelationCache()
+                .fetchTeamsSize(value, id);
+    }
 }
