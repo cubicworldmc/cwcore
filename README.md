@@ -12,5 +12,11 @@ CWCore is core plugin for Cubic
 - /team leave <team_name> - leaves team
 - /team message <team_name> <message...> - sends message to all members of the team
 - /team verify <team_name> - verifies team (for admins)
+- /team invites [page] - sends team invites
+- /team kick <team_name> \<player> - kicks player from the team
 - /rep \<player> - sends player reputation
 - /cwcore reputation \<player> <operator=+|-|=|add|sub|set> \<value> - sets player reputation (for admins)
+
+### Translation system
+
+It is easy to link other languages but for now done only english

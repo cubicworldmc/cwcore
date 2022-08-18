@@ -18,6 +18,7 @@ import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
 import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.listener.TeamInvitationNotification;
+import space.cubicworld.core.listener.TeamMessageSender;
 import space.cubicworld.core.listener.VelocityJoinListener;
 import space.cubicworld.core.listener.VelocityRealJoin;
 import space.cubicworld.core.message.CoreMessage;
@@ -93,6 +94,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));
+        server.getEventManager().register(this, new TeamMessageSender(this));
     }
 
     @Subscribe

@@ -344,5 +344,24 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public Component message(CorePlayer sender, String message) {
+        return empty()
+                .append(playerMention(sender)
+                        .append(space())
+                        .append(text(">"))
+                        .append(space())
+                )
+                .append(text(message));
+    }
+
+    public Component teamMessage(CoreTeam team, CorePlayer sender, String message) {
+        return empty()
+                .append(teamMention(team)
+                        .append(text(":"))
+                        .append(space())
+                )
+                .append(message(sender, message));
+    }
+
 
 }
