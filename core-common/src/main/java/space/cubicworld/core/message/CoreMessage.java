@@ -327,5 +327,22 @@ public class CoreMessage {
                         );
     }
 
+    public Component teamNotMember(CorePlayer player, CoreTeam team) {
+        return translatable("cwcore.team.member.not")
+                .args(playerMention(player), teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
+    public Component kickSuccess(CorePlayer player, CoreTeam team) {
+        return translatable("cwcore.team.kick.success")
+                .args(playerMention(player), teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component kickSelf() {
+        return translatable("cwcore.team.kick.self")
+                .color(FAIL_COLOR);
+    }
+
 
 }

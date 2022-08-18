@@ -22,6 +22,7 @@ public class TeamCommand extends CoreCommandNode<VelocityCoreCommandSource> {
         command(new TeamDeleteCommand(plugin));
         command(new TeamMessageCommand(plugin));
         command(new TeamInvitesCommand(plugin));
+        command(new TeamKickCommand(plugin));
     }
 
 }

@@ -213,7 +213,6 @@ class CoreRelationCache {
                 cache.accept(resultKey);
                 result.add(resultKey);
             }
-            System.out.println(result);
             resultSet.close();
             if (count == ALL || result.size() < count) cacheByValueSet.setSize(result.size());
             return Collections.unmodifiableList(result);

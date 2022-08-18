@@ -3,8 +3,8 @@ package space.cubicworld.core.command.team;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.proxy.Player;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
@@ -13,6 +13,8 @@ import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CoreTeam;
 import space.cubicworld.core.event.TeamCreateEvent;
+import space.cubicworld.core.event.TeamDeleteEvent;
+import space.cubicworld.core.event.TeamVerifyEvent;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.time.Duration;
@@ -22,7 +24,6 @@ import java.util.*;
         name = "create",
         permission = "cwcore.team.create"
 )
-@RequiredArgsConstructor
 public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
@@ -32,6 +33,11 @@ public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             .maximumSize(100)
             .expireAfterAccess(Duration.ofMinutes(10))
             .build(verifiedCacheLoader());
+
+    public TeamCreateCommand(VelocityPlugin plugin) {
+        this.plugin = plugin;
+        plugin.getServer().getEventManager().register(plugin, this);
+    }
 
     private CacheLoader<UUID, Optional<Integer>> verifiedCacheLoader() {
         return CacheLoader.from(uuid -> {
@@ -92,4 +98,24 @@ public class TeamCreateCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         }
         return Collections.emptyList();
     }
+
+    @Subscribe
+    public void teamVerify(TeamVerifyEvent event) {
+        verifiedCache.invalidate(event.getTeam().getOwnerId());
+    }
+
+    @Subscribe
+    public void teamCreate(TeamCreateEvent event) {
+        if (!event.getTeam().isVerified()) {
+            verifiedCache.put(event.getTeam().getOwnerId(), Optional.of(event.getTeam().getId()));
+        }
+    }
+
+    @Subscribe
+    public void teamDelete(TeamDeleteEvent event) {
+        if (!event.getTeam().isVerified()) {
+            verifiedCache.invalidate(event.getTeam().getOwnerId());
+        }
+    }
+
 }
