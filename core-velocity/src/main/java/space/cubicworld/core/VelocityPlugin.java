@@ -1,5 +1,6 @@
 package space.cubicworld.core;
 
+import com.electronwill.nightconfig.core.AbstractConfig;
 import com.electronwill.nightconfig.core.file.FileConfig;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import space.cubicworld.core.command.VelocityCommandHelper;
 import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.command.admin.AdminCommand;
+import space.cubicworld.core.command.color.ColorCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
 import space.cubicworld.core.database.CoreDatabase;
@@ -26,6 +28,9 @@ import space.cubicworld.core.message.CoreMessage;
 import java.io.*;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Plugin(
         id = "cwcore",
@@ -76,13 +81,18 @@ public class VelocityPlugin {
                 .autosave()
                 .build();
         config.load();
+        AbstractConfig colorsConfig = config.get("colors");
+        Map<String, String> colors = new LinkedHashMap<>();
+        colorsConfig.valueMap().forEach((key, value) -> colors.put(key, value.toString()));
         this.core = new CorePlugin(
                 config.get("mysql.host"),
                 config.get("mysql.username"),
                 config.get("mysql.password"),
                 config.get("mysql.database"),
                 getClass().getClassLoader(),
-                logger
+                logger,
+                new VelocityCoreResolver(this),
+                colors
         );
     }
 
@@ -91,6 +101,7 @@ public class VelocityPlugin {
         new VelocityCoreCommand(new ReputationCommand(this)).register(this);
         new VelocityCoreCommand(new AdminCommand(this)).register(this);
         new VelocityCoreCommand(new TeamCommand(this)).register(this);
+        new VelocityCoreCommand(new ColorCommand(this)).register(this);
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));

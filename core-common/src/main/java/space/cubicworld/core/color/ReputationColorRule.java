@@ -21,8 +21,8 @@ public class ReputationColorRule implements ColorRule {
     public Component getMessage() {
         return Component.translatable("cwcore.color.rule.reputation")
                 .args(
-                        Component.text(compare.toString()).color(CoreMessage.INACTIVE_COLOR),
-                        Component.text(value).color(CoreMessage.MENTION_COLOR)
+                        Component.text(compare.toString()),
+                        Component.text(value)
                 )
                 .color(CoreMessage.INFORMATION_COLOR);
     }

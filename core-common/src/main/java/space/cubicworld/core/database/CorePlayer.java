@@ -3,6 +3,7 @@ package space.cubicworld.core.database;
 import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import space.cubicworld.core.color.CoreColor;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,10 +21,13 @@ public interface CorePlayer {
 
     void setReputation(int reputation);
 
-    @Nullable
-    TextColor getGlobalColor();
+    @NotNull
+    CoreColor getGlobalColor();
 
-    void setGlobalColor(@Nullable TextColor color);
+    @Nullable
+    TextColor getResolvedGlobalColor();
+
+    void setGlobalColor(@NotNull CoreColor color);
 
     @Nullable
     CoreTeam getSelectedTeam();

@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import net.kyori.adventure.text.format.TextColor;
 import org.slf4j.Logger;
+import space.cubicworld.core.CoreResolver;
+import space.cubicworld.core.color.CoreColor;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,8 +42,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
                             resultSet.getString(2)
                     );
                     result.setReputation(resultSet.getInt(3));
-                    Integer globalColor = resultSet.getObject(4, Integer.class);
-                    result.setGlobalColor(globalColor == null ? null : TextColor.color(globalColor));
+                    result.setGlobalColor(CoreColor.fromInteger(resultSet.getInt(4)));
                     result.setSelectedTeamId(resultSet.getObject(5, Integer.class));
                     return result;
                 }
@@ -73,8 +74,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
                     ) {
                         statement.setString(1, model.getName());
                         statement.setInt(2, model.getReputation());
-                        TextColor color = model.getGlobalColor();
-                        statement.setObject(3, color == null ? null : color.value());
+                        statement.setObject(3, model.getGlobalColor().toInteger());
                         statement.setObject(4, model.getSelectedTeamId());
                         statement.setString(5, model.getId().toString());
                         statement.executeUpdate();
@@ -170,14 +170,19 @@ public class CoreDatabaseImpl implements CoreDatabase {
     @Getter
     private final CoreRelationCache relationCache = new CoreRelationCache(this);
 
+    @Getter
+    private final CoreResolver resolver;
+
     public CoreDatabaseImpl(
             String host,
             String username,
             String password,
             String database,
             ClassLoader classLoader,
-            Logger logger
+            Logger logger,
+            CoreResolver resolver
     ) throws IOException, SQLException {
+        this.resolver = resolver;
         HikariConfig config = new HikariConfig();
         try (InputStream hikariPropertiesIs = classLoader.getResourceAsStream("hikari.properties")) {
             if (hikariPropertiesIs != null) {

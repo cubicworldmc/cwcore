@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS players (
     uuid VARCHAR(36),
     name VARCHAR(16) NOT NULL,
     reputation INT NOT NULL DEFAULT 0,
-    global_color INT DEFAULT NULL,
+    global_color INT NOT NULL DEFAULT -1,
     selected_team_id INT DEFAULT NULL,
     PRIMARY KEY(uuid),
     UNIQUE KEY(name)

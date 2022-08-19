@@ -112,7 +112,7 @@ public class CoreMessage {
     }
 
     public Component playerMention(CorePlayer player) {
-        TextColor color = player.getGlobalColor();
+        TextColor color = player.getResolvedGlobalColor();
         return text(player.getName())
                 .hoverEvent(HoverEvent.showEntity(
                         Key.key("minecraft", "player"),
@@ -356,8 +356,12 @@ public class CoreMessage {
     public Component message(CorePlayer sender, String message) {
         return empty()
                 .append(playerMention(sender)
+                        .color(NamedTextColor.WHITE)
                         .append(space())
-                        .append(text(">"))
+                        .append(text(">")
+                                .decorate(TextDecoration.BOLD)
+                                .color(sender.getResolvedGlobalColor())
+                        )
                         .append(space())
                 )
                 .append(text(message));
@@ -421,25 +425,31 @@ public class CoreMessage {
                     ).append(newline());
             int counter = 0;
             for (NamedTextColor color : NamedTextColor.NAMES.values()) {
-                if (++counter % 4 == 0) result = result.append(newline());
                 result = result
                         .append(translatable("cwcore.color.default." + color)
                                 .color(color)
+                                .clickEvent(ClickEvent.runCommand("/color " + color))
                         ).append(space());
+                if (++counter % 4 == 0) result = result.append(newline());
             }
             result = result.append(translatable("cwcore.color.custom")
                     .color(INFORMATION_COLOR)
-            );
+            ).append(newline());
         }
         result = result
                 .append(translatable("cwcore.color.header.advancements").color(INFORMATION_COLOR))
                 .append(newline());
+        int counter = 0;
         for (ImmutablePair<ColorRule, TextColor> rule : rules) {
-            TextColor color = customColors || rule.getFirst().isMatches(player) ?
-                    rule.getSecond() : INACTIVE_COLOR;
+            boolean active = rule.getFirst().isMatches(player);
+            TextColor color = active ? rule.getSecond() : INACTIVE_COLOR;
             result = result.append(
-                    listElement(rule.getFirst().getMessage().color(color))
+                    listElement(rule.getFirst().getMessage()
+                            .color(color)
+                            .clickEvent(active ? ClickEvent.runCommand("/color - " + counter) : null)
+                    )
             ).append(newline());
+            counter += 1;
         }
         return result;
     }

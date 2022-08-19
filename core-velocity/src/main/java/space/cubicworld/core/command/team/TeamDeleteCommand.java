@@ -39,7 +39,7 @@ public class TeamDeleteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         boolean confirm = nextArg != null && nextArg.equals("confirm");
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .filter(team -> team.getOwnerId().equals(player.getUniqueId()) && !force)
+                .filter(team -> team.getOwnerId().equals(player.getUniqueId()) || force)
                 .ifPresentOrElse(
                         team -> {
                             if (!force && !confirm){

@@ -7,6 +7,7 @@ import lombok.Synchronized;
 import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import space.cubicworld.core.color.CoreColor;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,8 +29,15 @@ class CorePlayerImpl implements CorePlayer {
     private String name;
     private int reputation;
     @Nullable
-    private TextColor globalColor;
+    private CoreColor globalColor = CoreColor.empty();
     private Integer selectedTeamId;
+
+    @Override
+    public @Nullable TextColor getResolvedGlobalColor() {
+        synchronized (lock) {
+            return database.getResolver().resolve(this, globalColor);
+        }
+    }
 
     @Override
     public void setName(@NotNull String name) {
