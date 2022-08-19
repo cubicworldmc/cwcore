@@ -5,7 +5,6 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
-import space.cubicworld.core.database.CoreTeam;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.util.Collections;

@@ -9,7 +9,12 @@ public interface CorePTRelation {
     enum Value {
         MEMBERSHIP,
         INVITE,
-        NONE
+        READ,
+        NONE;
+
+        public boolean isInvite() {
+            return this == INVITE || this == READ;
+        }
     }
 
     @NotNull

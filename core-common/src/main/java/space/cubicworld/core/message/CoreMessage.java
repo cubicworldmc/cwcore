@@ -4,7 +4,6 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -15,6 +14,7 @@ import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
 import space.cubicworld.core.color.ColorRule;
+import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.database.CoreTeam;
@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
@@ -132,7 +131,17 @@ public class CoreMessage {
     }
 
     public Component teamMention(CoreTeam team) {
-        return text(team.getName()).color(MENTION_COLOR);
+        return text(team.getName())
+                .hoverEvent(HoverEvent.showText(empty()
+                        .append(team.getDescription() == null ?
+                                empty() :
+                                text(team.getDescription()).append(newline())
+                        )
+                        .append(translatable("cwcore.team.about.owner")
+                                .args(playerMention(team.getOwner()))
+                        )
+                ))
+                .color(MENTION_COLOR);
     }
 
     public Component teamAlreadyExist(String teamName) {
@@ -305,9 +314,20 @@ public class CoreMessage {
                 .stream()
                 .skip(page * 5)
                 .map(team ->
-                        listElement(teamMention(team) // should it be mention or clickable object?
-                                .clickEvent(ClickEvent.runCommand("/team accept " + team.getName()))
-                                .append(newline()))
+                        listElement(
+                                empty()
+                                        .append(teamMention(team))
+                                        .append(space())
+                                        .append(clickable(
+                                                translatable("cwcore.team.invites.accept")
+                                                        .clickEvent(ClickEvent.runCommand("/team accept " + team.getName()))
+                                        ))
+                                        .append(space())
+                                        .append(clickable(
+                                                translatable("cwcore.team.invites.read")
+                                                        .clickEvent(ClickEvent.runCommand("/team read " + team.getName()))
+                                        ))
+                        ).append(newline())
                 )
                 .toList();
         return teams.isEmpty() ?
@@ -324,13 +344,13 @@ public class CoreMessage {
                         .append(newline())
                         .append(join(JoinConfiguration.noSeparators(), teams))
                         .append(
-                                clickable(translatable("cwcore.team.invites.previous")
+                                clickable(translatable("cwcore.previous")
                                         .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
                                 ).clickEvent(previous ? ClickEvent.runCommand("/team invites " + page) : null)
                         )
                         .append(space())
                         .append(
-                                clickable(translatable("cwcore.team.invites.next")
+                                clickable(translatable("cwcore.next")
                                         .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
                                 ).clickEvent(next ? ClickEvent.runCommand("/team invites " + (page + 2)) : null)
                         );
@@ -464,5 +484,47 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public Component readSuccess(CoreTeam team) {
+        return translatable("cwcore.team.read.success")
+                .args(teamMention(team));
+    }
+
+    public Component verifies(CoreDatabase database, int page, List<Integer> notVerified) {
+        int totalPages = notVerified.size() / 5 + (notVerified.size() % 5 == 0 ? 0 : 1);
+        if (totalPages == 0) return translatable("cwcore.team.verifies.nothing")
+                .color(FAIL_COLOR);
+        boolean previous = page != 0;
+        boolean next = totalPages != page + 1;
+        List<Component> teams = notVerified
+                .stream()
+                .skip(page * 5)
+                .map(id -> database.fetchTeam(id).orElseThrow())
+                .map(team -> listElement(teamMention(team)
+                        .append(space())
+                        .append(clickable(translatable("cwcore.team.verifies.verify")
+                                .clickEvent(ClickEvent.runCommand("/team verify " + team.getName()))
+                        ))
+                ))
+                .toList();
+        return empty()
+                .append(translatable("cwcore.team.verifies.header")
+                        .args(
+                                text(page + 1).color(MENTION_COLOR),
+                                text(totalPages).color(MENTION_COLOR)
+                        )
+                )
+                .append(newline())
+                .append(join(JoinConfiguration.newlines(), teams))
+                .append(newline())
+                .append(clickable(translatable("cwcore.previous")
+                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                        .clickEvent(previous ? ClickEvent.runCommand("/team verifies " + (page)) : null)
+                ))
+                .append(space())
+                .append(clickable(translatable("cwcore.next")
+                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                        .clickEvent(next ? ClickEvent.runCommand("/team verifies " + (page + 2)) : null)
+                ));
+    }
 
 }

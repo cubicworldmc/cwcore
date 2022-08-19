@@ -7,7 +7,6 @@ import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.database.CorePTRelation;
-import space.cubicworld.core.event.TeamInviteAcceptEvent;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.util.Collections;
@@ -15,12 +14,11 @@ import java.util.Iterator;
 import java.util.List;
 
 @CoreCommandAnnotation(
-        name = "accept",
-        permission = "cwcore.team.accept",
-        aliases = "a"
+        name = "read",
+        permission = "cwcore.team.read"
 )
 @RequiredArgsConstructor
-public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
+public class TeamReadCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
 
@@ -46,12 +44,11 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
                                 source.sendMessage(CoreMessage.notInvited(team));
                                 return;
                             }
-                            relation.setValue(CorePTRelation.Value.MEMBERSHIP);
-                            plugin.getDatabase().update(relation);
-                            plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamInviteAcceptEvent(player, team)
-                            );
-                            source.sendMessage(CoreMessage.inviteAccepted(team));
+                            if (relation.getValue() != CorePTRelation.Value.READ) {
+                                relation.setValue(CorePTRelation.Value.READ);
+                                plugin.getDatabase().update(relation);
+                            }
+                            source.sendMessage(CoreMessage.readSuccess(team));
                         },
                         () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
                 );
@@ -64,7 +61,7 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         }
         args.next();
         if (!args.hasNext()) {
-            return Collections.singletonList("<team_name>");
+            return List.of("<team_name>");
         }
         return Collections.emptyList();
     }

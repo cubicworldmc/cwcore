@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS team_player_relations (
     player_uuid VARCHAR(36),
     team_id INTEGER,
-    relation ENUM("INVITE", "MEMBERSHIP") NOT NULL,
+    relation ENUM("INVITE", "MEMBERSHIP", "READ") NOT NULL,
     PRIMARY KEY(player_uuid, team_id),
     FOREIGN KEY(player_uuid) REFERENCES players(uuid) ON DELETE CASCADE,
     FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE

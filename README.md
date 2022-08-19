@@ -17,6 +17,7 @@ CWCore is core plugin for Cubic
 - /team settings <team_name> <description|hide> <value...> - sets team setting's value
 - /rep \<player> - sends player reputation
 - /cwcore reputation \<player> <operator=+|-|=|add|sub|set> \<value> - sets player reputation (for admins)
+- /color - sends menu to choose your color
 
 ### Translation system
 
