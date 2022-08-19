@@ -182,4 +182,8 @@ class CoreCache<K, S, M> {
         secondaryCache.put(functions.getSecondary(model), Optional.of(functions.getKey(model)));
     }
 
+    public void changeSecondaryKey(S previousKey, S newKey) {
+        secondaryCache.put(newKey, secondaryCache.remove(previousKey));
+    }
+
 }

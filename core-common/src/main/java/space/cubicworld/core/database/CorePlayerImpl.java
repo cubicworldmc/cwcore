@@ -32,6 +32,14 @@ class CorePlayerImpl implements CorePlayer {
     private Integer selectedTeamId;
 
     @Override
+    public void setName(@NotNull String name) {
+        synchronized (lock) {
+            database.getPlayerCache().changeSecondaryKey(this.name, name);
+            this.name = name;
+        }
+    }
+
+    @Override
     public @Nullable CoreTeam getSelectedTeam() {
         synchronized (lock) {
             return selectedTeamId == null ?

@@ -2,6 +2,7 @@ package space.cubicworld.core.listener;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 
@@ -12,16 +13,21 @@ public class VelocityJoinListener {
 
     @Subscribe
     public void join(PlayerChooseInitialServerEvent event) {
-        if (plugin.getDatabase()
-                .fetchPlayer(event.getPlayer().getUniqueId())
-                .isEmpty()
-        ) {
-            plugin.getDatabase()
-                    .newPlayer(
-                            event.getPlayer().getUniqueId(),
-                            event.getPlayer().getUsername()
-                    );
-        }
+        Player player = event.getPlayer();
+        plugin.getDatabase()
+                .fetchPlayer(player.getUniqueId())
+                .ifPresentOrElse(
+                        corePlayer -> {
+                            if (!corePlayer.getName().equalsIgnoreCase(player.getUsername())) {
+                                corePlayer.setName(player.getUsername());
+                                plugin.getDatabase().update(corePlayer);
+                            }
+                        },
+                        () -> plugin.getDatabase().newPlayer(
+                                player.getUniqueId(),
+                                player.getUsername()
+                        )
+                );
     }
 
 }

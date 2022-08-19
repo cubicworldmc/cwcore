@@ -1,10 +1,13 @@
 package space.cubicworld.core.command.team;
 
+import com.velocitypowered.api.permission.Tristate;
+import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.util.Collections;
@@ -30,7 +33,14 @@ public class TeamAboutCommand extends AbstractCoreCommand<VelocityCoreCommandSou
         plugin.getDatabase()
                 .fetchTeam(teamName)
                 .ifPresentOrElse(
-                        team -> source.sendMessage(CoreMessage.teamAbout(team)),
+                        team -> source.sendMessage(CoreMessage.teamAbout(
+                                team,
+                                (source.getSource().getPermissionValue("cwcore.team.about.hide.ignore") == Tristate.TRUE) ||
+                                (source.getSource() instanceof Player player && plugin.getDatabase()
+                                        .fetchPTRelation(player.getUniqueId(), team.getId())
+                                        .orElseThrow()
+                                        .getValue() == CorePTRelation.Value.MEMBERSHIP)
+                        )),
                         () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
                 );
     }

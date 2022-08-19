@@ -4,6 +4,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -13,14 +14,17 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
+import space.cubicworld.core.color.ColorRule;
 import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.database.CoreTeam;
+import space.cubicworld.core.util.ImmutablePair;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
@@ -30,12 +34,12 @@ import static net.kyori.adventure.text.Component.*;
 @UtilityClass
 public class CoreMessage {
 
-    private final TextColor FAIL_COLOR = NamedTextColor.WHITE;
-    private final TextColor MENTION_COLOR = NamedTextColor.BLUE;
-    private final TextColor SUCCESS_COLOR = NamedTextColor.WHITE;
-    private final TextColor INFORMATION_COLOR = NamedTextColor.WHITE;
-    private final TextColor CLICKABLE_COLOR = NamedTextColor.GOLD;
-    private final TextColor INACTIVE_COLOR = NamedTextColor.GRAY;
+    public final TextColor FAIL_COLOR = NamedTextColor.WHITE;
+    public final TextColor MENTION_COLOR = NamedTextColor.BLUE;
+    public final TextColor SUCCESS_COLOR = NamedTextColor.WHITE;
+    public final TextColor INFORMATION_COLOR = NamedTextColor.WHITE;
+    public final TextColor CLICKABLE_COLOR = NamedTextColor.GOLD;
+    public final TextColor INACTIVE_COLOR = NamedTextColor.GRAY;
 
     public void register(ClassLoader classLoader, Logger logger) {
         TranslationRegistry registry = TranslationRegistry.create(Key.key("cwcore", "main"));
@@ -198,23 +202,28 @@ public class CoreMessage {
     }
 
     @SneakyThrows
-    public Component teamAbout(CoreTeam team) {
-        Component membersMessage = empty();
-        List<CorePlayer> members = team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
-        if (!members.isEmpty()) {
-            for (int i = 0; ; ++i) {
-                if (i == 10) {
-                    membersMessage = membersMessage.append(text("..."));
-                    break;
-                }
-                CorePlayer member = members.get(i);
-                membersMessage = membersMessage.append(playerMention(member));
-                if (i < members.size() - 1) {
-                    membersMessage = membersMessage.append(text(", "));
-                } else {
-                    break;
+    public Component teamAbout(CoreTeam team, boolean forMember) {
+        Component membersMessage;
+        if (forMember || !team.isHide()) {
+            membersMessage = empty();
+            List<CorePlayer> members = team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
+            if (!members.isEmpty()) {
+                for (int i = 0; ; ++i) {
+                    if (i == 10) {
+                        membersMessage = membersMessage.append(text("..."));
+                        break;
+                    }
+                    CorePlayer member = members.get(i);
+                    membersMessage = membersMessage.append(playerMention(member));
+                    if (i < members.size() - 1) {
+                        membersMessage = membersMessage.append(text(", "));
+                    } else {
+                        break;
+                    }
                 }
             }
+        } else {
+            membersMessage = translatable("cwcore.team.about.hide");
         }
         return empty()
                 .append(translatable("cwcore.team.about.name")
@@ -361,6 +370,88 @@ public class CoreMessage {
                         .append(space())
                 )
                 .append(message(sender, message));
+    }
+
+    public Component teamProvideSettingsValueType() {
+        return translatable("cwcore.team.settings.value.type.provide")
+                .args(join(
+                        JoinConfiguration.commas(true),
+                        List.of(
+                                text("description").color(MENTION_COLOR),
+                                text("hide").color(MENTION_COLOR)
+                        )
+                ));
+    }
+
+    public Component teamSettingsHideBad() {
+        return translatable("cwcore.team.settings.value.hide.bad")
+                .args(
+                        text("true").color(MENTION_COLOR),
+                        text("false").color(MENTION_COLOR)
+                );
+    }
+
+    public Component teamSettingsHideUpdated(CoreTeam team, boolean value) {
+        return translatable("cwcore.team.settings.value.hide.success." + value)
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component teamSettingsDescriptionBad(int maxLength) {
+        return translatable("cwcore.team.settings.value.description.bad")
+                .args(text(maxLength).color(MENTION_COLOR));
+    }
+
+    public Component teamSettingsDescriptionUpdated(CoreTeam team) {
+        return translatable("cwcore.team.settings.value.description.success")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component colorInfo(
+            boolean customColors,
+            CorePlayer player,
+            List<ImmutablePair<ColorRule, TextColor>> rules
+    ) {
+        Component result = empty();
+        if (customColors) {
+            result = result
+                    .append(translatable("cwcore.color.header.custom")
+                            .color(INFORMATION_COLOR)
+                    ).append(newline());
+            int counter = 0;
+            for (NamedTextColor color : NamedTextColor.NAMES.values()) {
+                if (++counter % 4 == 0) result = result.append(newline());
+                result = result
+                        .append(translatable("cwcore.color.default." + color)
+                                .color(color)
+                        ).append(space());
+            }
+            result = result.append(translatable("cwcore.color.custom")
+                    .color(INFORMATION_COLOR)
+            );
+        }
+        result = result
+                .append(translatable("cwcore.color.header.advancements").color(INFORMATION_COLOR))
+                .append(newline());
+        for (ImmutablePair<ColorRule, TextColor> rule : rules) {
+            TextColor color = customColors || rule.getFirst().isMatches(player) ?
+                    rule.getSecond() : INACTIVE_COLOR;
+            result = result.append(
+                    listElement(rule.getFirst().getMessage().color(color))
+            ).append(newline());
+        }
+        return result;
+    }
+
+    public Component colorSuccess(TextColor color) {
+        return translatable("cwcore.color.success")
+                .color(color);
+    }
+
+    public Component colorBad() {
+        return translatable("cwcore.color.bad")
+                .color(FAIL_COLOR);
     }
 
 

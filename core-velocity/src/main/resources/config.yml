@@ -5,3 +5,8 @@ mysql:
   database: 'cwcore'
 
 ignored-servers: ['reg-limbo']
+
+colors:
+  'reputation > 4': '#6495ED'
+  'reputation > 9': '#7FFF00'
+  'reputation > 14': '#B8860B'

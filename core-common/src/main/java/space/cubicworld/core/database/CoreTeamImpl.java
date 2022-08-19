@@ -31,6 +31,14 @@ class CoreTeamImpl implements CoreTeam {
     private UUID ownerId;
 
     @Override
+    public void setName(@NotNull String name) {
+        synchronized (lock) {
+            database.getTeamCache().changeSecondaryKey(name, this.name);
+            this.name = name;
+        }
+    }
+
+    @Override
     public @NotNull CorePlayer getOwner() {
         synchronized (lock) {
             return database.fetchPlayer(ownerId)

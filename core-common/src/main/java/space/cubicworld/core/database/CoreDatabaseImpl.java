@@ -19,6 +19,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
 
     private final HikariDataSource dataSource;
 
+    @Getter
     private final CoreCache<UUID, String, CorePlayer> playerCache = new CoreCache<>(
             new CoreCache.Functions<>() {
                 @Override
@@ -94,6 +95,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
             }
     );
 
+    @Getter
     private final CoreCache<Integer, String, CoreTeam> teamCache = new CoreCache<>(
             new CoreCache.Functions<>() {
                 @Override
