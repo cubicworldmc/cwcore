@@ -25,4 +25,9 @@ public class VelocityCoreResolver implements CoreResolver {
                 .map(it -> color.getCustom())
                 .orElse(null);
     }
+
+    @Override
+    public int getTeamLimit(int upgradeLevel) {
+        return 15 + upgradeLevel * 5;
+    }
 }

@@ -39,6 +39,10 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
                 .fetchTeam(teamName)
                 .ifPresentOrElse(
                         team -> {
+                            if (team.getMaxMembers() < team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP)) {
+                                source.sendMessage(CoreMessage.playersLimitIncreased(team));
+                                return;
+                            }
                             CorePTRelation relation = plugin.getDatabase()
                                     .fetchPTRelation(player.getUniqueId(), team.getId())
                                     .orElseThrow();

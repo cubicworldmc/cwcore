@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import space.cubicworld.core.command.VelocityCommandHelper;
 import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.command.admin.AdminCommand;
+import space.cubicworld.core.command.boost.BoostCommand;
 import space.cubicworld.core.command.color.ColorCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
@@ -102,6 +103,7 @@ public class VelocityPlugin {
         new VelocityCoreCommand(new AdminCommand(this)).register(this);
         new VelocityCoreCommand(new TeamCommand(this)).register(this);
         new VelocityCoreCommand(new ColorCommand(this)).register(this);
+        new VelocityCoreCommand(new BoostCommand(this)).register(this);
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));

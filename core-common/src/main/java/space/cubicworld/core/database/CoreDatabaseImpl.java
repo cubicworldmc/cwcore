@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import net.kyori.adventure.text.format.TextColor;
 import org.slf4j.Logger;
 import space.cubicworld.core.CoreResolver;
 import space.cubicworld.core.color.CoreColor;
@@ -44,6 +43,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
                     result.setReputation(resultSet.getInt(3));
                     result.setGlobalColor(CoreColor.fromInteger(resultSet.getInt(4)));
                     result.setSelectedTeamId(resultSet.getObject(5, Integer.class));
+                    result.setInactiveBoosts(resultSet.getInt(6));
                     return result;
                 }
 
@@ -67,7 +67,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
                     try (Connection connection = getConnection();
                          PreparedStatement statement = connection.prepareStatement("""
                                  UPDATE players
-                                 SET name = ?, reputation = ?, global_color = ?, selected_team_id = ?
+                                 SET name = ?, reputation = ?, global_color = ?, selected_team_id = ?, boosts = ?
                                  WHERE uuid = ?
                                  """
                          )
@@ -76,7 +76,8 @@ public class CoreDatabaseImpl implements CoreDatabase {
                         statement.setInt(2, model.getReputation());
                         statement.setObject(3, model.getGlobalColor().toInteger());
                         statement.setObject(4, model.getSelectedTeamId());
-                        statement.setString(5, model.getId().toString());
+                        statement.setInt(5, model.getInactiveBoosts());
+                        statement.setString(6, model.getId().toString());
                         statement.executeUpdate();
                     }
                 }
@@ -169,6 +170,8 @@ public class CoreDatabaseImpl implements CoreDatabase {
     );
     @Getter
     private final CoreRelationCache relationCache = new CoreRelationCache(this);
+    @Getter
+    private final CoreBoostCache boostCache = new CoreBoostCache(this);
 
     @Getter
     private final CoreResolver resolver;
@@ -200,11 +203,11 @@ public class CoreDatabaseImpl implements CoreDatabase {
         config.setPassword(password);
         dataSource = new HikariDataSource(config);
         try (Connection connection = getConnection();
-            Statement statement = connection.createStatement();
-            InputStream setupSqlIs = classLoader.getResourceAsStream("setup.sql")) {
+             Statement statement = connection.createStatement();
+             InputStream setupSqlIs = classLoader.getResourceAsStream("setup.sql")) {
             String setupSqlString = new String(setupSqlIs.readAllBytes());
             String[] setupSqlStatements = setupSqlString.split(";");
-            for (String setupSqlStatementSql: setupSqlStatements) {
+            for (String setupSqlStatementSql : setupSqlStatements) {
                 if (setupSqlStatementSql.trim().isEmpty()) break;
                 statement.addBatch(setupSqlStatementSql);
             }
@@ -260,6 +263,22 @@ public class CoreDatabaseImpl implements CoreDatabase {
                 Optional.empty() : Optional.of(relationCache.fetchRelation(player, team));
     }
 
+
+    @Override
+    public Optional<CoreBoost> fetchBoost(long id) {
+        return boostCache.fetchBoost(id);
+    }
+
+    @Override
+    public List<CoreBoost> fetchPlayerBoosts(UUID player) {
+        return boostCache.fetchPlayerBoosts(player);
+    }
+
+    @Override
+    public List<CoreBoost> fetchTeamBoosts(int team) {
+        return boostCache.fetchTeamBoosts(team);
+    }
+
     @Override
     @SneakyThrows
     public CoreTeam newTeam(String name, UUID owner) {
@@ -309,6 +328,35 @@ public class CoreDatabaseImpl implements CoreDatabase {
 
     @Override
     @SneakyThrows
+    public CoreBoost newBoost(UUID player) {
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO player_boosts (player_uuid, ends) VALUES (?, ?)",
+                     Statement.RETURN_GENERATED_KEYS
+             )) {
+            statement.setString(1, player.toString());
+            long ends = System.currentTimeMillis() + CoreBoostCache.MONTH;
+            statement.setLong(2, ends);
+            statement.executeUpdate();
+            ResultSet generatedKeys = statement.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                long id = generatedKeys.getLong(1);
+                CoreBoost boost = new CoreBoostImpl(
+                        this,
+                        id,
+                        player
+                );
+                boost.setEnd(ends);
+                generatedKeys.close();
+                return boostCache.cache(boost);
+            }
+            generatedKeys.close();
+            throw new RuntimeException("No generated keys");
+        }
+    }
+
+    @Override
+    @SneakyThrows
     public void update(CorePlayer player) {
         playerCache.update(player);
     }
@@ -344,6 +392,12 @@ public class CoreDatabaseImpl implements CoreDatabase {
 
     @Override
     @SneakyThrows
+    public void update(CoreBoost boost) {
+        boostCache.update(boost);
+    }
+
+    @Override
+    @SneakyThrows
     public void remove(CorePlayer player) {
         playerCache.remove(player);
     }
@@ -352,5 +406,11 @@ public class CoreDatabaseImpl implements CoreDatabase {
     @SneakyThrows
     public void remove(CoreTeam team) {
         teamCache.remove(team);
+    }
+
+    @Override
+    @SneakyThrows
+    public void remove(CoreBoost boost) {
+        boostCache.remove(boost);
     }
 }

@@ -23,9 +23,17 @@ public interface CoreDatabase {
 
     Optional<CorePTRelation> fetchPTRelation(UUID player, int team);
 
+    Optional<CoreBoost> fetchBoost(long id);
+
+    List<CoreBoost> fetchPlayerBoosts(UUID player);
+
+    List<CoreBoost> fetchTeamBoosts(int team);
+
     CoreTeam newTeam(String name, UUID owner);
 
     CorePlayer newPlayer(UUID id, String name);
+
+    CoreBoost newBoost(UUID player);
 
     void update(CorePlayer player);
 
@@ -33,8 +41,12 @@ public interface CoreDatabase {
 
     void update(CorePTRelation relation);
 
+    void update(CoreBoost boost);
+
     void remove(CorePlayer player);
 
     void remove(CoreTeam team);
+
+    void remove(CoreBoost boost);
 
 }

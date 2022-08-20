@@ -14,24 +14,23 @@ import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
 import space.cubicworld.core.color.ColorRule;
-import space.cubicworld.core.database.CoreDatabase;
-import space.cubicworld.core.database.CorePTRelation;
-import space.cubicworld.core.database.CorePlayer;
-import space.cubicworld.core.database.CoreTeam;
+import space.cubicworld.core.database.*;
 import space.cubicworld.core.util.ImmutablePair;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Locale;
-import java.util.PropertyResourceBundle;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import static net.kyori.adventure.text.Component.*;
 
 @UtilityClass
 public class CoreMessage {
+
+    private final DateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH:mm");
 
     public final TextColor FAIL_COLOR = NamedTextColor.WHITE;
     public final TextColor MENTION_COLOR = NamedTextColor.BLUE;
@@ -236,7 +235,9 @@ public class CoreMessage {
         }
         return empty()
                 .append(translatable("cwcore.team.about.name")
-                        .args(teamMention(team))
+                        .args(teamMention(team).append(
+                                team.isVerified() ? text(" ✔") : empty()
+                        ))
                 )
                 .append(Component.newline())
                 .append(team.getDescription() == null ?
@@ -250,7 +251,12 @@ public class CoreMessage {
                 )
                 .append(newline())
                 .append(translatable("cwcore.team.about.members")
-                        .args(membersMessage)
+                        .args(
+                                membersMessage,
+                                text(team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP))
+                                        .color(MENTION_COLOR),
+                                text(team.getMaxMembers()).color(MENTION_COLOR)
+                        )
                 );
     }
 
@@ -312,7 +318,7 @@ public class CoreMessage {
         List<Component> teams = player
                 .getAllRelations(CorePTRelation.Value.INVITE)
                 .stream()
-                .skip(page * 5)
+                .skip(page * 5L)
                 .map(team ->
                         listElement(
                                 empty()
@@ -490,6 +496,7 @@ public class CoreMessage {
     }
 
     public Component verifies(CoreDatabase database, int page, List<Integer> notVerified) {
+        if (page < 0) throw new IllegalArgumentException("page is negative");
         int totalPages = notVerified.size() / 5 + (notVerified.size() % 5 == 0 ? 0 : 1);
         if (totalPages == 0) return translatable("cwcore.team.verifies.nothing")
                 .color(FAIL_COLOR);
@@ -525,6 +532,94 @@ public class CoreMessage {
                         .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
                         .clickEvent(next ? ClickEvent.runCommand("/team verifies " + (page + 2)) : null)
                 ));
+    }
+
+    public Component playersLimitIncreased(CoreTeam team) {
+        return translatable("cwcore.team.invite.accept.limit.increased")
+                .args(teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
+    public Component boostMenu(CorePlayer player, int page) {
+        if (page < 0) throw new IllegalArgumentException("page is negative");
+        List<CoreBoost> boosts = player.getBoosts();
+        int totalPages = boosts.size() / 5 + (boosts.size() % 5 == 0 ? 0 : 1);
+        boolean next = page + 1 < totalPages;
+        boolean previous = page != 0;
+        return empty()
+                .append(translatable("cwcore.boost.info.header")
+                        .args(
+                                playerMention(player),
+                                text(page + 1).color(MENTION_COLOR),
+                                text(totalPages).color(MENTION_COLOR)
+                        )
+                        .color(INFORMATION_COLOR)
+                )
+                .append(newline())
+                .append(translatable("cwcore.boost.info.inactive")
+                        .args(text(player.getInactiveBoosts())
+                                .color(MENTION_COLOR)
+                        )
+                        .color(INFORMATION_COLOR)
+                )
+                .append(newline())
+                .append(join(
+                        JoinConfiguration.newlines(),
+                        boosts
+                                .stream()
+                                .skip(page * 5L)
+                                .map(boost -> listElement(empty()
+                                        .append(translatable("cwcore.boost.info.boost")
+                                                .args(text(boost.getId()).color(MENTION_COLOR))
+                                                .color(INFORMATION_COLOR)
+                                        )
+                                        .append(newline())
+                                        .append(translatable("cwcore.boost.info.boost.before")
+                                                .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
+                                                .color(INFORMATION_COLOR)
+                                        )
+                                        .append(newline())
+                                        .append(translatable("cwcore.boost.info.boost.target")
+                                                .args(Optional.ofNullable(boost.getTeam())
+                                                        .map(CoreMessage::teamMention)
+                                                        .orElseGet(() -> translatable("cwcore.boost.info.boost.target.none")
+                                                                .color(MENTION_COLOR)
+                                                        )
+                                                )
+                                                .color(INFORMATION_COLOR)
+                                        )
+                                ))
+                                .toList()
+                ))
+                .append(newline())
+                .append(clickable(translatable("cwcore.previous")
+                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                        .clickEvent(previous ?
+                                ClickEvent.runCommand("/boost info " + (page)) : null)
+                ))
+                .append(space())
+                .append(clickable(translatable("cwcore.next")
+                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                        .clickEvent(next ?
+                                ClickEvent.runCommand("/boost info " + (page + 2)) : null)
+                ));
+    }
+
+    public Component addedOneBoost(CorePlayer player) {
+        return translatable("cwcore.boost.add.success")
+                .args(playerMention(player))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component boostActivateConfirm(String command) {
+        return clickable(translatable("cwcore.boost.activate.confirm")
+                .clickEvent(ClickEvent.runCommand(command))
+        );
+    }
+
+    public Component boostActivateNoBoosts() {
+        return translatable("cwcore.boost.activate.boosts.none")
+                .color(INFORMATION_COLOR);
     }
 
 }

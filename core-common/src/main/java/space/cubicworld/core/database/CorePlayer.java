@@ -45,4 +45,14 @@ public interface CorePlayer {
 
     int getRelationsCount(CorePTRelation.Value value);
 
+    List<CoreBoost> getBoosts();
+
+    void setInactiveBoosts(int boosts);
+
+    int getInactiveBoosts();
+
+    void incrementInactiveBoosts();
+
+    void decrementInactiveBoosts();
+
 }

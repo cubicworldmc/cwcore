@@ -69,4 +69,14 @@ class CoreTeamImpl implements CoreTeam {
                 .getRelationCache()
                 .fetchPlayersSize(value, id);
     }
+
+    @Override
+    public List<CoreBoost> getBoosts() {
+        return database.fetchTeamBoosts(id);
+    }
+
+    @Override
+    public int getMaxMembers() {
+        return database.getResolver().getTeamLimit(getUpgradeLevel());
+    }
 }

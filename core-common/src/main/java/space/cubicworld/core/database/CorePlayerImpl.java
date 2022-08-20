@@ -31,6 +31,7 @@ class CorePlayerImpl implements CorePlayer {
     @Nullable
     private CoreColor globalColor = CoreColor.empty();
     private Integer selectedTeamId;
+    private int inactiveBoosts;
 
     @Override
     public @Nullable TextColor getResolvedGlobalColor() {
@@ -82,5 +83,24 @@ class CorePlayerImpl implements CorePlayer {
         return database
                 .getRelationCache()
                 .fetchTeamsSize(value, id);
+    }
+
+    @Override
+    public List<CoreBoost> getBoosts() {
+        return database.fetchPlayerBoosts(id);
+    }
+
+    @Override
+    public void incrementInactiveBoosts() {
+        synchronized (lock) {
+            inactiveBoosts++;
+        }
+    }
+
+    @Override
+    public void decrementInactiveBoosts() {
+        synchronized (lock) {
+            inactiveBoosts--;
+        }
     }
 }

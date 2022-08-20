@@ -8,4 +8,6 @@ public interface CoreResolver {
 
     TextColor resolve(CorePlayer player, CoreColor color);
 
+    int getTeamLimit(int upgradeLevel);
+
 }

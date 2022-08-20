@@ -45,4 +45,12 @@ public interface CoreTeam {
 
     int getRelationsCount(CorePTRelation.Value value);
 
+    List<CoreBoost> getBoosts();
+
+    default int getUpgradeLevel() {
+        return getBoosts().size();
+    }
+
+    int getMaxMembers();
+
 }
