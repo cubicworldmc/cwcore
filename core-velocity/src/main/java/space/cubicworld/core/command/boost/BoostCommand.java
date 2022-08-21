@@ -12,9 +12,10 @@ import space.cubicworld.core.command.VelocityCoreCommandSource;
 public class BoostCommand extends CoreCommandNode<VelocityCoreCommandSource> {
 
     public BoostCommand(VelocityPlugin plugin) {
-        command(new BoostInfoCommand(plugin));
+        super(new BoostInfoCommand(plugin), true);
         command(new BoostAddCommand(plugin));
         command(new BoostActivateCommand(plugin));
+        command(new BoostUseCommand(plugin));
     }
 
 }

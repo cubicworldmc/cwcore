@@ -18,7 +18,7 @@ public class VelocityCoreCommandSource implements CoreCommandSource {
 
     public static void sendLocaleMessage(CommandSource source, Component component) {
         source.sendMessage(GlobalTranslator.render(
-                component,
+                Component.newline().append(component),
                 source instanceof Player player ?
                         player.getPlayerSettings().getLocale() :
                         Locale.ENGLISH

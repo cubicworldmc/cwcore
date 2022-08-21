@@ -165,24 +165,25 @@ class CoreBoostCache {
     }
 
     public void update(CoreBoost boost) throws SQLException {
+        Integer teamId = boost.getTeamId();
         try (Connection connection = database.getConnection();
-             PreparedStatement statement = connection.prepareStatement(
+             PreparedStatement updateStatement = connection.prepareStatement(
                      "UPDATE player_boosts SET ends = ? WHERE id = ?"
+             );
+             PreparedStatement teamUpdateStatement = connection.prepareStatement(teamId != null ?
+                     "INSERT INTO team_boosts (boost_id, team_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE team_id = ?" :
+                     "DELETE FROM team_boosts WHERE boost_id = ?"
              )
         ) {
-            statement.setLong(1, boost.getEnd());
-            statement.setLong(2, boost.getId());
-            Integer teamId = boost.getTeamId();
-            statement.addBatch(teamId != null ?
-                    "INSERT INTO team_boosts (boost_id, team_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE team_id = ?" :
-                    "DELETE FROM team_boosts WHERE boost_id = ?"
-            );
-            statement.setLong(1, boost.getId());
+            updateStatement.setLong(1, boost.getEnd());
+            updateStatement.setLong(2, boost.getId());
+            teamUpdateStatement.setLong(1, boost.getId());
             if (teamId != null) {
-                statement.setInt(2, teamId);
-                statement.setInt(3, teamId);
+                teamUpdateStatement.setInt(2, teamId);
+                teamUpdateStatement.setInt(3, teamId);
             }
-            statement.executeLargeBatch();
+            updateStatement.executeUpdate();
+            teamUpdateStatement.executeUpdate();
         }
     }
 

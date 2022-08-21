@@ -42,7 +42,6 @@ public class BoostActivateCommand extends AbstractCoreCommand<VelocityCoreComman
         }
         String next = args.next();
         if (next.equals("confirm")) {
-            corePlayer.decrementInactiveBoosts();
             plugin.getDatabase().newBoost(corePlayer.getId());
         }
         else if (!args.hasNext() || !args.next().equals("confirm")) {
@@ -52,9 +51,15 @@ public class BoostActivateCommand extends AbstractCoreCommand<VelocityCoreComman
         else {
             long id = Long.parseLong(next);
             CoreBoost boost = plugin.getDatabase().fetchBoost(id).orElseThrow();
+            if (!boost.getPlayerId().equals(player.getUniqueId())) {
+                source.sendMessage(CoreMessage.boostActivateOwningFalse());
+                return;
+            }
             boost.extend();
             plugin.getDatabase().update(boost);
         }
+        corePlayer.decrementInactiveBoosts();
+        plugin.getDatabase().update(corePlayer);
         source.sendMessage(CoreMessage.boostMenu(corePlayer, 0));
     }
 

@@ -540,6 +540,45 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public Component boostAbout(CoreBoost boost) {
+        return empty()
+                .append(translatable("cwcore.boost.info.boost")
+                        .args(text(boost.getId()).color(MENTION_COLOR))
+                        .color(INFORMATION_COLOR)
+                )
+                .append(space())
+                .append(clickable(translatable("cwcore.boost.info.extend")
+                        .clickEvent(ClickEvent.runCommand("/boost activate " + boost.getId()))
+                ))
+                .append(newline())
+                .append(translatable("cwcore.boost.info.boost.before")
+                        .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
+                        .color(INFORMATION_COLOR)
+                )
+                .append(newline())
+                .append(translatable("cwcore.boost.info.boost.target")
+                        .args(Optional.ofNullable(boost.getTeam())
+                                .map(CoreMessage::teamMention)
+                                .orElseGet(() -> translatable("cwcore.boost.info.boost.target.none")
+                                        .color(MENTION_COLOR)
+                                )
+                        )
+                        .color(INFORMATION_COLOR)
+                )
+                .append(newline())
+                .append(translatable("cwcore.boost.info.use")
+                        .args(empty()
+                                .append(clickable(translatable("cwcore.boost.info.use.team")
+                                        .clickEvent(ClickEvent.suggestCommand("/boost use %s team ".formatted(boost.getId())))
+                                ))
+                                .append(space())
+                                .append(clickable(translatable("cwcore.boost.info.use.clear")
+                                        .clickEvent(ClickEvent.runCommand("/boost use %s clear".formatted(boost.getId())))
+                                ))
+                        )
+                );
+    }
+
     public Component boostMenu(CorePlayer player, int page) {
         if (page < 0) throw new IllegalArgumentException("page is negative");
         List<CoreBoost> boosts = player.getBoosts();
@@ -562,33 +601,17 @@ public class CoreMessage {
                         )
                         .color(INFORMATION_COLOR)
                 )
+                .append(space())
+                .append(clickable(translatable("cwcore.boost.info.activate")
+                        .clickEvent(ClickEvent.runCommand("/boost activate"))
+                ))
                 .append(newline())
                 .append(join(
                         JoinConfiguration.newlines(),
                         boosts
                                 .stream()
                                 .skip(page * 5L)
-                                .map(boost -> listElement(empty()
-                                        .append(translatable("cwcore.boost.info.boost")
-                                                .args(text(boost.getId()).color(MENTION_COLOR))
-                                                .color(INFORMATION_COLOR)
-                                        )
-                                        .append(newline())
-                                        .append(translatable("cwcore.boost.info.boost.before")
-                                                .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
-                                                .color(INFORMATION_COLOR)
-                                        )
-                                        .append(newline())
-                                        .append(translatable("cwcore.boost.info.boost.target")
-                                                .args(Optional.ofNullable(boost.getTeam())
-                                                        .map(CoreMessage::teamMention)
-                                                        .orElseGet(() -> translatable("cwcore.boost.info.boost.target.none")
-                                                                .color(MENTION_COLOR)
-                                                        )
-                                                )
-                                                .color(INFORMATION_COLOR)
-                                        )
-                                ))
+                                .map(boost -> listElement(boostAbout(boost)))
                                 .toList()
                 ))
                 .append(newline())
@@ -620,6 +643,16 @@ public class CoreMessage {
     public Component boostActivateNoBoosts() {
         return translatable("cwcore.boost.activate.boosts.none")
                 .color(INFORMATION_COLOR);
+    }
+
+    public Component boostActivateOwningFalse() {
+        return translatable("cwcore.boost.activate.owning.false")
+                .color(FAIL_COLOR);
+    }
+
+    public Component boostNotEdit() {
+        return translatable("cwcore.boost.edit.not")
+                .color(FAIL_COLOR);
     }
 
 }
