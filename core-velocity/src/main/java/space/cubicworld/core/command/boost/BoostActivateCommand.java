@@ -8,6 +8,7 @@ import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.database.CoreBoost;
 import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.event.BoostActivateEvent;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.util.Collections;
@@ -41,8 +42,11 @@ public class BoostActivateCommand extends AbstractCoreCommand<VelocityCoreComman
             return;
         }
         String next = args.next();
+        CoreBoost boost;
+        boolean extend;
         if (next.equals("confirm")) {
-            plugin.getDatabase().newBoost(corePlayer.getId());
+            boost = plugin.getDatabase().newBoost(corePlayer.getId());
+            extend = false;
         }
         else if (!args.hasNext() || !args.next().equals("confirm")) {
             source.sendMessage(CoreMessage.boostActivateConfirm("/boost activate " + next + " confirm"));
@@ -50,16 +54,20 @@ public class BoostActivateCommand extends AbstractCoreCommand<VelocityCoreComman
         }
         else {
             long id = Long.parseLong(next);
-            CoreBoost boost = plugin.getDatabase().fetchBoost(id).orElseThrow();
+            boost = plugin.getDatabase().fetchBoost(id).orElseThrow();
             if (!boost.getPlayerId().equals(player.getUniqueId())) {
                 source.sendMessage(CoreMessage.boostActivateOwningFalse());
                 return;
             }
             boost.extend();
             plugin.getDatabase().update(boost);
+            extend = true;
         }
         corePlayer.decrementInactiveBoosts();
         plugin.getDatabase().update(corePlayer);
+        plugin.getServer().getEventManager().fireAndForget(
+                new BoostActivateEvent(boost, extend)
+        );
         source.sendMessage(CoreMessage.boostMenu(corePlayer, 0));
     }
 

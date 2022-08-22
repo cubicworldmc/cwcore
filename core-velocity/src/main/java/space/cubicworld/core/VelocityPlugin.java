@@ -6,6 +6,7 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -25,11 +26,11 @@ import space.cubicworld.core.listener.TeamMessageSender;
 import space.cubicworld.core.listener.VelocityJoinListener;
 import space.cubicworld.core.listener.VelocityRealJoin;
 import space.cubicworld.core.message.CoreMessage;
+import space.cubicworld.core.scheduler.BoostPremiumScheduler;
 
 import java.io.*;
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -37,7 +38,8 @@ import java.util.Map;
         id = "cwcore",
         name = "CWCore",
         authors = "Jenya705",
-        description = "Core plugin for cubic"
+        description = "Core plugin for cubic",
+        dependencies = @Dependency(id = "luckperms")
 )
 @Getter
 public class VelocityPlugin {
@@ -108,6 +110,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));
         server.getEventManager().register(this, new TeamMessageSender(this));
+        server.getEventManager().register(this, new BoostPremiumScheduler(this));
     }
 
     @Subscribe

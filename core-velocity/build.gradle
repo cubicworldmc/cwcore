@@ -6,6 +6,7 @@ dependencies {
     implementation project(':core-common')
     implementation 'com.electronwill.night-config:yaml:3.6.5'
     implementation 'com.google.guava:guava:31.1-jre'
+    compileOnly 'net.luckperms:api:5.4'
     compileOnly 'com.velocitypowered:velocity-api:3.0.0'
     annotationProcessor 'com.velocitypowered:velocity-api:3.0.0'
 }
