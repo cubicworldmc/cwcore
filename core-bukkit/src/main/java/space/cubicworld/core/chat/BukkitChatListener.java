@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -38,10 +39,11 @@ public class BukkitChatListener implements Listener {
             Set<Audience> viewers = event.viewers();
             try {
                 int localRadius = plugin.getConfig().getInt("chat.local-radius");
-                viewers.removeIf(viewer -> viewer instanceof Player viewerPlayer &&
-                        !viewerPlayer.getWorld().equals(sender.getWorld()) &&
-                        viewerPlayer.getLocation().getX() - sender.getLocation().getX() > localRadius &&
-                        viewerPlayer.getLocation().getZ() - sender.getLocation().getZ() > localRadius
+                viewers.removeIf(viewer -> viewer instanceof Player viewerPlayer && !(
+                                viewerPlayer.getWorld().equals(sender.getWorld()) &&
+                                        Math.abs(viewerPlayer.getLocation().getX() - sender.getLocation().getX()) <= localRadius &&
+                                        Math.abs(viewerPlayer.getLocation().getZ() - sender.getLocation().getZ()) <= localRadius
+                        )
                 );
             } catch (UnsupportedOperationException e) {
                 plugin.getLogger().warning("AsyncChatEvent has immutable set of viewers can not edit them, just cancelling");
@@ -55,7 +57,14 @@ public class BukkitChatListener implements Listener {
                 ),
                 message
         );
-        event.renderer((source, sourceDisplayName, message1, viewer) -> endMessage);
+        if (!global) {
+            endMessage = Component.empty()
+                    .append(Component.text("L").color(NamedTextColor.GRAY))
+                    .append(Component.space())
+                    .append(endMessage);
+        }
+        final Component finalEndMessage = endMessage;
+        event.renderer((source, sourceDisplayName, message1, viewer) -> finalEndMessage);
     }
 
 }
