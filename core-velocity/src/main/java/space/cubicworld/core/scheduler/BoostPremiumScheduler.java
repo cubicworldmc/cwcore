@@ -27,11 +27,6 @@ public class BoostPremiumScheduler {
     private final LuckPerms luckPerms = LuckPermsProvider.get();
 
     @Subscribe
-    public void join(RealJoinEvent event) {
-        updateTime(event.getPlayer().getUniqueId());
-    }
-
-    @Subscribe
     public void boostActivate(BoostActivateEvent event) {
         updateTime(event.getBoost().getPlayerId());
     }

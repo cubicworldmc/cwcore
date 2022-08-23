@@ -1,19 +1,13 @@
 package space.cubicworld.core.database;
 
-import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import space.cubicworld.core.color.CoreColor;
+import space.cubicworld.core.json.CoreLightPlayer;
 
 import java.util.List;
-import java.util.UUID;
 
-public interface CorePlayer {
-
-    UUID getId();
-
-    @NotNull
-    String getName();
+public interface CorePlayer extends CoreLightPlayer {
 
     void setName(@NotNull String name);
 
@@ -23,9 +17,6 @@ public interface CorePlayer {
 
     @NotNull
     CoreColor getGlobalColor();
-
-    @Nullable
-    TextColor getResolvedGlobalColor();
 
     void setGlobalColor(@NotNull CoreColor color);
 

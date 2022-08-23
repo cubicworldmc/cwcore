@@ -27,6 +27,7 @@ import space.cubicworld.core.listener.VelocityJoinListener;
 import space.cubicworld.core.listener.VelocityRealJoin;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.scheduler.BoostPremiumScheduler;
+import space.cubicworld.core.updater.VelocityPlayerUpdater;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -111,6 +112,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new VelocityRealJoin(this));
         server.getEventManager().register(this, new TeamMessageSender(this));
         server.getEventManager().register(this, new BoostPremiumScheduler(this));
+        server.getEventManager().register(this, new VelocityPlayerUpdater(this));
     }
 
     @Subscribe

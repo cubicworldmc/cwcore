@@ -2,5 +2,6 @@ dependencies {
     implementation 'mysql:mysql-connector-java:8.0.30'
     implementation 'com.google.guava:guava:31.1-jre'
     implementation 'com.zaxxer:HikariCP:5.0.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.3'
     compileOnly 'org.slf4j:slf4j-api:1.7.36'
 }

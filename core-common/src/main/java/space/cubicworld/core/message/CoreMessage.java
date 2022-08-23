@@ -15,6 +15,7 @@ import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
 import space.cubicworld.core.color.ColorRule;
 import space.cubicworld.core.database.*;
+import space.cubicworld.core.json.CoreLightPlayer;
 import space.cubicworld.core.util.ImmutablePair;
 
 import java.io.IOException;
@@ -109,7 +110,7 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component playerMention(CorePlayer player) {
+    public Component playerMention(CoreLightPlayer player) {
         TextColor color = player.getResolvedGlobalColor();
         return text(player.getName())
                 .hoverEvent(HoverEvent.showEntity(
@@ -379,7 +380,7 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component message(CorePlayer sender, String message) {
+    public Component message(CoreLightPlayer sender, Component message) {
         return empty()
                 .append(playerMention(sender)
                         .color(NamedTextColor.WHITE)
@@ -390,7 +391,7 @@ public class CoreMessage {
                         )
                         .append(space())
                 )
-                .append(text(message));
+                .append(message);
     }
 
     public Component teamMessage(CoreTeam team, CorePlayer sender, String message) {
@@ -399,7 +400,7 @@ public class CoreMessage {
                         .append(text(":"))
                         .append(space())
                 )
-                .append(message(sender, message));
+                .append(message(sender, text(message)));
     }
 
     public Component teamProvideSettingsValueType() {
