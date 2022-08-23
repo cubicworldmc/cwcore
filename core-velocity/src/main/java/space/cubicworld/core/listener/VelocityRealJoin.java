@@ -14,14 +14,12 @@ public class VelocityRealJoin {
 
     private final VelocityPlugin plugin;
 
-    private final Set<UUID> alreadyFired = Collections.synchronizedSet(new HashSet<>());
-
     @Subscribe
     public void changeServer(ServerConnectedEvent event) {
-        if (alreadyFired.contains(event.getPlayer().getUniqueId())) return;
+        if (plugin.getRealJoined().contains(event.getPlayer().getUniqueId())) return;
         List<String> ignoredServers = plugin.getConfig().get("ignored-servers");
         if (ignoredServers != null && ignoredServers.contains(event.getServer().getServerInfo().getName())) return;
-        alreadyFired.add(event.getPlayer().getUniqueId());
+        plugin.getRealJoined().add(event.getPlayer().getUniqueId());
         plugin.getServer().getEventManager().fireAndForget(
                 new RealJoinEvent(event.getPlayer(), event.getServer())
         );
@@ -29,7 +27,7 @@ public class VelocityRealJoin {
 
     @Subscribe
     public void disconnect(DisconnectEvent event) {
-        alreadyFired.remove(event.getPlayer().getUniqueId());
+        plugin.getRealJoined().remove(event.getPlayer().getUniqueId());
     }
 
 }

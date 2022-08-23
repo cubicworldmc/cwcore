@@ -22,7 +22,9 @@ public class TeamMessageSender {
         );
         event.getTeam()
                 .getAllRelations(CorePTRelation.Value.MEMBERSHIP)
-                .forEach(corePlayer -> plugin.getServer().getPlayer(corePlayer.getId())
+                .forEach(corePlayer -> plugin.getServer()
+                        .getPlayer(corePlayer.getId())
+                        .filter(plugin::isRealJoined)
                         .ifPresent(player -> player.sendMessage(message))
                 );
     }

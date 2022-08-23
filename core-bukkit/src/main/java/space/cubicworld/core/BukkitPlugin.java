@@ -2,8 +2,9 @@ package space.cubicworld.core;
 
 import lombok.Getter;
 import org.bukkit.plugin.java.JavaPlugin;
-import space.cubicworld.core.chat.BukkitChatListener;
+import space.cubicworld.core.listener.BukkitChatListener;
 import space.cubicworld.core.json.CoreLightPlayer;
+import space.cubicworld.core.listener.BukkitJoinQuitListener;
 
 import java.util.Map;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public class BukkitPlugin extends JavaPlugin {
         BukkitPlayerUpdater playerUpdater = new BukkitPlayerUpdater(this);
         getServer().getPluginManager().registerEvents(playerUpdater, this);
         getServer().getPluginManager().registerEvents(new BukkitChatListener(this), this);
+        getServer().getPluginManager().registerEvents(new BukkitJoinQuitListener(), this);
         getServer().getMessenger().registerIncomingPluginChannel(this, CoreStatic.PLAYER_UPDATE_CHANNEL, playerUpdater);
 
     }

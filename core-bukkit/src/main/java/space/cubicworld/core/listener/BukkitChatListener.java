@@ -1,4 +1,4 @@
-package space.cubicworld.core.chat;
+package space.cubicworld.core.listener;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
 import lombok.RequiredArgsConstructor;

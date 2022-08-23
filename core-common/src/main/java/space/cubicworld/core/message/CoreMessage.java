@@ -110,15 +110,18 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public TextColor mentionColor(TextColor color) {
+        return color == null ? MENTION_COLOR : color;
+    }
+
     public Component playerMention(CoreLightPlayer player) {
-        TextColor color = player.getResolvedGlobalColor();
         return text(player.getName())
                 .hoverEvent(HoverEvent.showEntity(
                         Key.key("minecraft", "player"),
                         player.getId()
                 ))
                 .clickEvent(ClickEvent.runCommand("/tell %s".formatted(player.getName())))
-                .color(color == null ? MENTION_COLOR : color);
+                .color(mentionColor(player.getResolvedGlobalColor()));
     }
 
     public Component playerReputation(CorePlayer player) {
@@ -654,6 +657,30 @@ public class CoreMessage {
     public Component boostNotEdit() {
         return translatable("cwcore.boost.edit.not")
                 .color(FAIL_COLOR);
+    }
+
+    public Component joinMessage(CoreLightPlayer player) {
+        return empty()
+                .append(text(">")
+                        .decorate(TextDecoration.BOLD)
+                        .color(mentionColor(player.getResolvedGlobalColor()))
+                )
+                .append(space())
+                .append(translatable("multiplayer.player.joined")
+                        .args(playerMention(player))
+                );
+    }
+
+    public Component quitMessage(CoreLightPlayer player) {
+        return empty()
+                .append(text("<")
+                        .decorate(TextDecoration.BOLD)
+                        .color(mentionColor(player.getResolvedGlobalColor()))
+                )
+                .append(space())
+                .append(translatable("multiplayer.player.left")
+                        .args(playerMention(player))
+                );
     }
 
 }

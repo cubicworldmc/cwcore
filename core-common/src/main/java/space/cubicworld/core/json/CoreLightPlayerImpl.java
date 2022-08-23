@@ -12,7 +12,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CoreLightPlayerImpl implements CoreLightPlayer {
 
-    public static CoreLightPlayerImpl toImpl(CoreLightPlayer player) {
+    public static CoreLightPlayer toImpl(CoreLightPlayer player) {
         TextColor globalColor = player.getResolvedGlobalColor();
         return new CoreLightPlayerImpl(
                 player.getId(),
@@ -21,7 +21,7 @@ public class CoreLightPlayerImpl implements CoreLightPlayer {
         );
     }
 
-    public static CoreLightPlayerImpl defaultImpl(UUID id, String name) {
+    public static CoreLightPlayer defaultImpl(UUID id, String name) {
         return new CoreLightPlayerImpl(id, name, -1);
     }
 

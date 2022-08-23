@@ -9,7 +9,9 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import lombok.Cleanup;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -21,10 +23,8 @@ import space.cubicworld.core.command.color.ColorCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
 import space.cubicworld.core.database.CoreDatabase;
-import space.cubicworld.core.listener.TeamInvitationNotification;
-import space.cubicworld.core.listener.TeamMessageSender;
-import space.cubicworld.core.listener.VelocityJoinListener;
-import space.cubicworld.core.listener.VelocityRealJoin;
+import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.listener.*;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.scheduler.BoostPremiumScheduler;
 import space.cubicworld.core.updater.VelocityPlayerUpdater;
@@ -32,8 +32,7 @@ import space.cubicworld.core.updater.VelocityPlayerUpdater;
 import java.io.*;
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 @Plugin(
         id = "cwcore",
@@ -49,6 +48,8 @@ public class VelocityPlugin {
     private final CorePlugin core;
     private final FileConfig config;
     private final Logger logger;
+
+    private final Set<UUID> realJoined = Collections.synchronizedSet(new HashSet<>());
 
     @Inject
     public VelocityPlugin(
@@ -113,6 +114,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new TeamMessageSender(this));
         server.getEventManager().register(this, new BoostPremiumScheduler(this));
         server.getEventManager().register(this, new VelocityPlayerUpdater(this));
+        server.getEventManager().register(this, new VelocityJoinQuitMessagesListener(this));
     }
 
     @Subscribe
@@ -126,6 +128,14 @@ public class VelocityPlugin {
 
     public CoreDatabase getDatabase() {
         return core.getDatabase();
+    }
+
+    public boolean isRealJoined(Player player) {
+        return realJoined.contains(player.getUniqueId());
+    }
+
+    public boolean isRealJoined(CorePlayer player) {
+        return realJoined.contains(player.getId());
     }
 
 }

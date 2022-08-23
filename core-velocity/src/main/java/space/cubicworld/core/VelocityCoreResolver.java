@@ -3,6 +3,8 @@ package space.cubicworld.core;
 import com.velocitypowered.api.permission.Tristate;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.format.TextColor;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.CorePlayer;
 
@@ -10,6 +12,8 @@ import space.cubicworld.core.database.CorePlayer;
 public class VelocityCoreResolver implements CoreResolver {
 
     private final VelocityPlugin plugin;
+
+    private final LuckPerms luckPerms = LuckPermsProvider.get();
 
     @Override
     public TextColor resolve(CorePlayer player, CoreColor color) {

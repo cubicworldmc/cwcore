@@ -18,6 +18,7 @@ public class TeamInvitationNotification {
     @Subscribe
     public void invite(TeamInviteEvent event) {
         plugin.getServer().getPlayer(event.getInvited().getId())
+                .filter(plugin::isRealJoined)
                 .ifPresent(player -> {
                     try {
                         VelocityCoreCommandSource.sendLocaleMessage(player,
