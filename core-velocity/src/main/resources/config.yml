@@ -12,3 +12,6 @@ colors:
   'reputation > 14': '#B8860B'
 
 premium-permission: 'group.premium'
+
+premium:
+  custom-color: true

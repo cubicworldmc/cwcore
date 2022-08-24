@@ -83,6 +83,12 @@ public class CoreMessage {
                 .append(text("]").color(INFORMATION_COLOR));
     }
 
+    public Component simpleLimitedList(List<Component> components, int baseCount, int limit) {
+        Component result = join(JoinConfiguration.commas(true), components);
+        return baseCount > limit ?
+                result.append(text("...").color(INFORMATION_COLOR)) : result;
+    }
+
     public Component provideTeamName() {
         return translatable("cwcore.command.provide.team")
                 .color(FAIL_COLOR);
@@ -217,23 +223,16 @@ public class CoreMessage {
     public Component teamAbout(CoreTeam team, boolean forMember) {
         Component membersMessage;
         if (forMember || !team.isHide()) {
-            membersMessage = empty();
             List<CorePlayer> members = team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
-            if (!members.isEmpty()) {
-                for (int i = 0; ; ++i) {
-                    if (i == 10) {
-                        membersMessage = membersMessage.append(text("..."));
-                        break;
-                    }
-                    CorePlayer member = members.get(i);
-                    membersMessage = membersMessage.append(playerMention(member));
-                    if (i < members.size() - 1) {
-                        membersMessage = membersMessage.append(text(", "));
-                    } else {
-                        break;
-                    }
-                }
-            }
+            membersMessage = simpleLimitedList(
+                    members.stream()
+                            .limit(10)
+                            .map(CoreMessage::playerMention)
+                            .toList(),
+                    members.size(),
+                    10
+            );
+
         } else {
             membersMessage = translatable("cwcore.team.about.hide");
         }
@@ -563,7 +562,7 @@ public class CoreMessage {
                 .append(translatable("cwcore.boost.info.boost.target")
                         .args(Optional.ofNullable(boost.getTeam())
                                 .map(CoreMessage::teamMention)
-                                .orElseGet(() -> translatable("cwcore.boost.info.boost.target.none")
+                                .orElseGet(() -> translatable("cwcore.none")
                                         .color(MENTION_COLOR)
                                 )
                         )
@@ -681,6 +680,59 @@ public class CoreMessage {
                 .append(translatable("multiplayer.player.left")
                         .args(playerMention(player))
                 );
+    }
+
+    public Component profile(CorePlayer player) {
+        List<CoreTeam> teams = player.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
+        return empty()
+                .color(INFORMATION_COLOR)
+                .append(translatable("cwcore.profile.header")
+                        .args(playerMention(player))
+                )
+                .append(newline())
+                .append(translatable("cwcore.profile.reputation")
+                        .args(text(player.getReputation()).color(MENTION_COLOR))
+                )
+                .append(newline())
+                .append(translatable("cwcore.profile.teams")
+                        .args(teams.isEmpty() ?
+                                translatable("cwcore.none").color(MENTION_COLOR) :
+                                simpleLimitedList(
+                                        teams.stream()
+                                                .limit(10)
+                                                .map(CoreMessage::teamMention)
+                                                .toList(),
+                                        teams.size(),
+                                        10
+                                )
+                        )
+                )
+                ;
+    }
+
+    public Component selectTeamSuccess(CoreTeam team) {
+        return translatable("cwcore.team.select.success")
+                .args(teamMention(team))
+                .color(SUCCESS_COLOR);
+    }
+
+    public Component selectTeamNeed() {
+        return translatable("cwcore.team.select.not")
+                .args(clickable(text("/team select")
+                        .clickEvent(ClickEvent.suggestCommand("/team select "))
+                ))
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamNotMemberSelf(CoreTeam team) {
+        return translatable("cwcore.team.member.not.self")
+                .args(teamMention(team))
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamMessageEmpty() {
+        return translatable("cwcore.team.message.empty")
+                .color(FAIL_COLOR);
     }
 
 }

@@ -8,12 +8,12 @@ import net.luckperms.api.LuckPermsProvider;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.CorePlayer;
 
+import java.util.Optional;
+
 @RequiredArgsConstructor
 public class VelocityCoreResolver implements CoreResolver {
 
     private final VelocityPlugin plugin;
-
-    private final LuckPerms luckPerms = LuckPermsProvider.get();
 
     @Override
     public TextColor resolve(CorePlayer player, CoreColor color) {
@@ -23,11 +23,15 @@ public class VelocityCoreResolver implements CoreResolver {
                     .getColor(color.getIndex(), player)
                     .orElse(null);
         }
+        boolean premiumCounts = plugin.getConfig().getOrElse("premium.custom-color", true);
         return plugin.getServer()
                 .getPlayer(player.getId())
                 .filter(it -> it.getPermissionValue("cwcore.color.custom") == Tristate.TRUE)
                 .map(it -> color.getCustom())
-                .orElse(null);
+                .orElseGet(() ->
+                        !premiumCounts || plugin.getDatabase().fetchPlayerBoosts(player.getId()).isEmpty() ?
+                                null : color.getCustom()
+                );
     }
 
     @Override

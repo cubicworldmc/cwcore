@@ -8,7 +8,6 @@ import space.cubicworld.core.command.VelocityCoreCommandSource;
 @CoreCommandAnnotation(
         name = "cwcore",
         permission = "cwcore.admin"
-        /* Not admin command because all sub commands are admin */
 )
 public class AdminCommand extends CoreCommandNode<VelocityCoreCommandSource> {
 

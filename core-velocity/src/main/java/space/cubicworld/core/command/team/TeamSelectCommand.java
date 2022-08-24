@@ -2,28 +2,25 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.Nullable;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.database.CorePlayer;
-import space.cubicworld.core.event.TeamMessageEvent;
+import space.cubicworld.core.database.CoreTeam;
+import space.cubicworld.core.event.TeamSelectEvent;
 import space.cubicworld.core.message.CoreMessage;
-import space.cubicworld.core.util.MessageUtils;
 
-import java.sql.ResultSet;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 @CoreCommandAnnotation(
-        name = "message",
-        permission = "cwcore.team.message",
-        aliases = {"msg", "tell", "w"}
+        name = "select",
+        permission = "cwcore.team.select"
 )
 @RequiredArgsConstructor
-public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
+public class TeamSelectCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
 
@@ -38,22 +35,20 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        plugin
-                .getDatabase()
+        CorePlayer corePlayer = plugin.getDatabase()
+                .fetchPlayer(player.getUniqueId())
+                .orElseThrow();
+        plugin.getDatabase()
                 .fetchTeam(teamName)
                 .ifPresentOrElse(
                         team -> {
-                            CorePlayer corePlayer = plugin.getDatabase()
-                                    .fetchPlayer(player.getUniqueId())
-                                    .orElseThrow();
-                            String message = MessageUtils.buildMessage(args);
-                            if (message == null) {
-                                source.sendMessage(CoreMessage.teamMessageEmpty());
-                                return;
-                            }
+                            CoreTeam previous = corePlayer.getSelectedTeam();
+                            corePlayer.setSelectedTeam(team);
+                            plugin.getDatabase().update(corePlayer);
                             plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamMessageEvent(corePlayer, team, message)
+                                    new TeamSelectEvent(corePlayer, previous, team)
                             );
+                            source.sendMessage(CoreMessage.selectTeamSuccess(team));
                         },
                         () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
                 );
@@ -70,5 +65,4 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
         }
         return Collections.emptyList();
     }
-
 }
