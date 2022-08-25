@@ -6,6 +6,7 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.event.ReputationChangeEvent;
 import space.cubicworld.core.message.CoreMessage;
 
 import java.util.Collections;
@@ -50,9 +51,13 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
                                 case "-", "sub" -> newReputation -= amount;
                                 case "=", "set" -> newReputation = amount;
                             }
-                            if (newReputation != player.getReputation()) {
+                            int previous = player.getReputation();
+                            if (newReputation != previous) {
                                 player.setReputation(newReputation);
                                 plugin.getDatabase().update(player);
+                                plugin.getServer().getEventManager().fireAndForget(
+                                        new ReputationChangeEvent(player, previous, newReputation)
+                                );
                             }
                             source.sendMessage(CoreMessage.playerReputation(player));
                         },

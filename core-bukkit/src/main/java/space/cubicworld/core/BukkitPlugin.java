@@ -22,8 +22,8 @@ public class BukkitPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(playerUpdater, this);
         getServer().getPluginManager().registerEvents(new BukkitChatListener(this), this);
         getServer().getPluginManager().registerEvents(new BukkitJoinQuitListener(), this);
-        getServer().getMessenger().registerIncomingPluginChannel(this, CoreStatic.PLAYER_UPDATE_CHANNEL, playerUpdater);
-
+        getServer().getMessenger().registerIncomingPluginChannel(
+                this, CoreStatic.PLAYER_UPDATE_CHANNEL, playerUpdater);
     }
 
 }

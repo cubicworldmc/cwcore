@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.CoreStatic;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.event.ColorChangeEvent;
+import space.cubicworld.core.event.ReputationChangeEvent;
 import space.cubicworld.core.json.CoreJsonObjectMapper;
 import space.cubicworld.core.json.CoreLightPlayer;
 import space.cubicworld.core.json.CoreLightPlayerImpl;
@@ -47,6 +48,11 @@ public class VelocityPlayerUpdater {
         if (event.getIdentifier().equals(CHANNEL)) {
             event.setResult(PluginMessageEvent.ForwardResult.handled());
         }
+    }
+
+    @Subscribe
+    public void reputationChange(ReputationChangeEvent event) {
+        update(event.getPlayer());
     }
 
 }
