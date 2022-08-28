@@ -57,17 +57,20 @@ class CoreTopCache {
                 int newPlace = -1;
                 for (int i = 0; i < maxLength; ++i) {
                     T currentChecked = array[i];
-                    if (currentChecked == null) break;
+                    if (currentChecked == null || (previousPlace != -1 && newPlace != -1)) break;
                     if (currentChecked.equals(object)) previousPlace = i;
                     int currentCheckedWeight = functions.getWeight(currentChecked);
-                    if (currentCheckedWeight < weight) newPlace = i;
-                    if (previousPlace != -1 && newPlace != -1) break;
+                    if (currentCheckedWeight <= weight) newPlace = i;
                 }
+                if (previousPlace == newPlace && previousPlace != -1) return;
                 if (maxLength != array.length && previousPlace == -1 && newPlace == -1) {
                     array[maxLength++] = object;
                     realLength = maxLength;
                 }
-                if (maxLength != array.length && newPlace == -1) newPlace = maxLength;
+                if (maxLength != array.length && newPlace == -1) {
+                    if (previousPlace == realLength - 1) return;
+                    newPlace = maxLength;
+                }
                 if (previousPlace == -1 && newPlace == -1) return;
                 if (previousPlace != -1 && newPlace != -1) {
                     /*
@@ -161,9 +164,7 @@ class CoreTopCache {
                 if (realLength != maxLength && realLength < size) {
                     forceUpdateUnSynchronized();
                 }
-                List<T> result= Arrays.stream(array).limit(Math.min(realLength, size)).toList();
-                System.out.println(result);
-                return result;
+                return Arrays.stream(array).limit(Math.min(realLength, size)).toList();
             }
         }
 
@@ -202,7 +203,7 @@ class CoreTopCache {
                                      FROM team_player_relations relation
                                      INNER JOIN players player WHERE player.uuid = relation.player_uuid AND relation.relation = "MEMBERSHIP"
                                      GROUP BY relation.team_id
-                                     ORDER BY SUM(DISTINCT player.reputation)
+                                     ORDER BY SUM(DISTINCT player.reputation) DESC
                                      LIMIT ?
                                      """
                              )
@@ -270,6 +271,7 @@ class CoreTopCache {
 
     public void newTeam(int teamId) {
         teamReputations.put(teamId, 0);
+        teamReputationTop.update(teamId);
     }
 
     public int getTeamReputation(int teamId) {
