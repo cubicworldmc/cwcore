@@ -49,6 +49,22 @@ class CorePlayerImpl implements CorePlayer {
     }
 
     @Override
+    public void setReputation(int reputation) {
+        int offset;
+        synchronized (lock) {
+            offset = reputation - this.reputation;
+            this.reputation = reputation;
+        }
+        database.getTopCache().updateReputation(id, offset);
+    }
+
+    public void setRawReputation(int reputation) {
+        synchronized (lock) {
+            this.reputation = reputation;
+        }
+    }
+
+    @Override
     public @Nullable CoreTeam getSelectedTeam() {
         synchronized (lock) {
             return selectedTeamId == null ?

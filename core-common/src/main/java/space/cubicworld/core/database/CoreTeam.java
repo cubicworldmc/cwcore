@@ -53,4 +53,6 @@ public interface CoreTeam {
 
     int getMaxMembers();
 
+    int getReputation();
+
 }

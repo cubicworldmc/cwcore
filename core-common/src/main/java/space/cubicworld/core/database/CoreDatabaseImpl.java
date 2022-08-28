@@ -40,7 +40,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
                             UUID.fromString(resultSet.getString(1)),
                             resultSet.getString(2)
                     );
-                    result.setReputation(resultSet.getInt(3));
+                    result.setRawReputation(resultSet.getInt(3));
                     result.setGlobalColor(CoreColor.fromInteger(resultSet.getInt(4)));
                     result.setSelectedTeamId(resultSet.getObject(5, Integer.class));
                     result.setInactiveBoosts(resultSet.getInt(6));
@@ -172,6 +172,8 @@ public class CoreDatabaseImpl implements CoreDatabase {
     private final CoreRelationCache relationCache = new CoreRelationCache(this);
     @Getter
     private final CoreBoostCache boostCache = new CoreBoostCache(this);
+    @Getter
+    private final CoreTopCache topCache;
 
     @Getter
     private final CoreResolver resolver;
@@ -213,6 +215,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
             }
             statement.executeLargeBatch();
         }
+        topCache = new CoreTopCache(this);
     }
 
     @Override
@@ -280,6 +283,14 @@ public class CoreDatabaseImpl implements CoreDatabase {
     }
 
     @Override
+    public List<CoreTeam> fetchTeamReputationTop() {
+        return topCache.getTeamReputationTop()
+                .stream()
+                .map(id -> fetchTeam(id).orElseThrow())
+                .toList();
+    }
+
+    @Override
     @SneakyThrows
     public CoreTeam newTeam(String name, UUID owner) {
         if (fetchTeam(name).isPresent()) {
@@ -302,6 +313,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
             keys.close();
             CoreTeam team = new CoreTeamImpl(this, teamId, name, owner);
             teamCache.cache(team);
+            topCache.newTeam(team.getId());
             return team;
         }
     }

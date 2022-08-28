@@ -23,6 +23,7 @@ import space.cubicworld.core.command.profile.ProfileCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
 import space.cubicworld.core.command.team.TeamMessageAliasCommand;
+import space.cubicworld.core.command.top.TopCommand;
 import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.listener.*;
@@ -111,6 +112,7 @@ public class VelocityPlugin {
         new VelocityCoreCommand(new BoostCommand(this)).register(this);
         new VelocityCoreCommand(new ProfileCommand(this)).register(this);
         new VelocityCoreCommand(new TeamMessageAliasCommand(this)).register(this);
+        new VelocityCoreCommand(new TopCommand(this)).register(this);
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));

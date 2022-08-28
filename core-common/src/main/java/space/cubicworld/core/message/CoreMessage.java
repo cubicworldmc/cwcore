@@ -735,4 +735,23 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
+    public Component teamsReputationTop(List<CoreTeam> teams) {
+        return empty()
+                .append(translatable("cwcore.top.reputation.teams.header")
+                        .color(INFORMATION_COLOR))
+                .append(newline())
+                .append(join(
+                        JoinConfiguration.newlines(),
+                        teams.stream()
+                                .map(team -> listElement(
+                                        translatable("cwcore.top.reputation.teams.element")
+                                                .args(
+                                                        teamMention(team),
+                                                        text(team.getReputation()).color(MENTION_COLOR)
+                                                )
+                                ))
+                                .toList()
+                ));
+    }
+
 }

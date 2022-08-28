@@ -79,4 +79,9 @@ class CoreTeamImpl implements CoreTeam {
     public int getMaxMembers() {
         return database.getResolver().getTeamLimit(getUpgradeLevel());
     }
+
+    @Override
+    public int getReputation() {
+        return database.getTopCache().getTeamReputation(id);
+    }
 }
