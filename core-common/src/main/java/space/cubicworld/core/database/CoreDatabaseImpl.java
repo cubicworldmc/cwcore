@@ -291,6 +291,14 @@ public class CoreDatabaseImpl implements CoreDatabase {
     }
 
     @Override
+    public List<CorePlayer> fetchPlayerReputationTop() {
+        return topCache.getPlayerReputationTop()
+                .stream()
+                .map(id -> fetchPlayer(id).orElseThrow())
+                .toList();
+    }
+
+    @Override
     @SneakyThrows
     public CoreTeam newTeam(String name, UUID owner) {
         if (fetchTeam(name).isPresent()) {
@@ -334,6 +342,7 @@ public class CoreDatabaseImpl implements CoreDatabase {
             statement.executeUpdate();
             CorePlayer player = new CorePlayerImpl(this, id, name);
             playerCache.cache(player);
+            topCache.newPlayer(id);
             return player;
         }
     }

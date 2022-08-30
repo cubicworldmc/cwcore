@@ -744,10 +744,29 @@ public class CoreMessage {
                         JoinConfiguration.newlines(),
                         teams.stream()
                                 .map(team -> listElement(
-                                        translatable("cwcore.top.reputation.teams.element")
+                                        translatable("cwcore.top.reputation.element")
                                                 .args(
                                                         teamMention(team),
                                                         text(team.getReputation()).color(MENTION_COLOR)
+                                                )
+                                ))
+                                .toList()
+                ));
+    }
+
+    public Component playersReputationTop(List<CorePlayer> players) {
+        return empty()
+                .append(translatable("cwcore.top.reputation.players.header")
+                        .color(INFORMATION_COLOR))
+                .append(newline())
+                .append(join(
+                        JoinConfiguration.newlines(),
+                        players.stream()
+                                .map(player -> listElement(
+                                        translatable("cwcore.top.reputation.element")
+                                                .args(
+                                                        playerMention(player),
+                                                        text(player.getReputation())
                                                 )
                                 ))
                                 .toList()

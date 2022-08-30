@@ -60,12 +60,13 @@ class CoreTopCache {
                     if (currentChecked == null || (previousPlace != -1 && newPlace != -1)) break;
                     if (currentChecked.equals(object)) previousPlace = i;
                     int currentCheckedWeight = functions.getWeight(currentChecked);
-                    if (currentCheckedWeight <= weight) newPlace = i;
+                    if (newPlace == -1 && currentCheckedWeight <= weight) newPlace = i;
                 }
                 if (previousPlace == newPlace && previousPlace != -1) return;
                 if (maxLength != array.length && previousPlace == -1 && newPlace == -1) {
                     array[maxLength++] = object;
                     realLength = maxLength;
+                    return;
                 }
                 if (maxLength != array.length && newPlace == -1) {
                     if (previousPlace == realLength - 1) return;
@@ -187,6 +188,7 @@ class CoreTopCache {
             .maximumSize(500)
             .build(CacheLoader.from(this::teamReputationLoader));
     private final CoreTop<Integer> teamReputationTop;
+    private final CoreTop<UUID> playerReputationTop;
 
     private final CoreDatabaseImpl database;
 
@@ -230,6 +232,30 @@ class CoreTopCache {
                 },
                 new Integer[CoreStatic.TOP_SIZE * 3]
         );
+        playerReputationTop = new CoreTop<>(
+                new CoreTop.Functions<>() {
+                    @Override
+                    @SneakyThrows
+                    public int fetch(UUID[] array) {
+                        List<CorePlayer> players = database
+                                .fetchPlayers(
+                                        "SELECT * FROM players ORDER BY reputation DESC LIMIT ?",
+                                        array.length
+                                );
+                        int counter = 0;
+                        for (CorePlayer player: players) array[counter++] = player.getId();
+                        return players.size();
+                    }
+
+                    @Override
+                    public int getWeight(UUID object) {
+                        return database.fetchPlayer(object)
+                                .orElseThrow()
+                                .getReputation();
+                    }
+                },
+                new UUID[CoreStatic.TOP_SIZE * 3]
+        );
     }
 
     @SneakyThrows
@@ -250,9 +276,12 @@ class CoreTopCache {
         }
     }
 
-    @SneakyThrows
     public List<Integer> getTeamReputationTop() {
         return teamReputationTop.getSlice(CoreStatic.TOP_SIZE);
+    }
+
+    public List<UUID> getPlayerReputationTop() {
+        return playerReputationTop.getSlice(CoreStatic.TOP_SIZE);
     }
 
     public void updateReputation(UUID playerId, int offset) {
@@ -267,11 +296,16 @@ class CoreTopCache {
                             teamReputationTop.update(teamId);
                         })
                 );
+        playerReputationTop.update(playerId);
     }
 
     public void newTeam(int teamId) {
         teamReputations.put(teamId, 0);
         teamReputationTop.update(teamId);
+    }
+
+    public void newPlayer(UUID playerId) {
+        playerReputationTop.update(playerId);
     }
 
     public int getTeamReputation(int teamId) {

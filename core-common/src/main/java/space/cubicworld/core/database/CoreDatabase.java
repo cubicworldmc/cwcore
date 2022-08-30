@@ -31,6 +31,8 @@ public interface CoreDatabase {
 
     List<CoreTeam> fetchTeamReputationTop();
 
+    List<CorePlayer> fetchPlayerReputationTop();
+
     CoreTeam newTeam(String name, UUID owner);
 
     CorePlayer newPlayer(UUID id, String name);

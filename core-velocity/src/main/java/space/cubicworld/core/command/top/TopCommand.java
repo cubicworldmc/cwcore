@@ -13,6 +13,7 @@ public class TopCommand extends CoreCommandNode<VelocityCoreCommandSource> {
 
     public TopCommand(VelocityPlugin plugin) {
         command(new TeamsTopCommand(plugin));
+        command(new PlayersTopCommand(plugin));
     }
 
 }
