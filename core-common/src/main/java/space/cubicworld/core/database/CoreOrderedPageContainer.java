@@ -38,29 +38,6 @@ public abstract class CoreOrderedPageContainer<T> {
     protected final int maximumPageSize;
 
     public void update(T object, int previous, int current) {
-        Page<T> previousPage = binarySearch(previous);
-        Page<T> nextPage = binarySearch(current);
-    }
-
-    private Page<T> binarySearch(int value) {
-        int leftIndex = 0;
-        int rightIndex = pages.size();
-        int index = pages.size() / 2;
-        while (leftIndex <= index && rightIndex >= index) {
-            Page<T> current = pages.get(index);
-            int left = getWeight(current.start.value);
-            int right = getWeight(current.end.value);
-            if (left <= value && right >= value) return current;
-            if (left > value) {
-                rightIndex = index;
-                index /= 2;
-            }
-            else {
-                leftIndex = index;
-                index += index / 2;
-            }
-        }
-        return null;
     }
 
     protected abstract void fetch(Consumer<T> valueConsumer, int pageNumber);

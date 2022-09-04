@@ -688,11 +688,11 @@ public class CoreMessage {
         return empty()
                 .append(text("<")
                         .decorate(TextDecoration.BOLD)
-                        .color(mentionColor(player.getResolvedGlobalColor()))
+                        .color(orDefault(player.getResolvedGlobalColor(), INACTIVE_COLOR))
                 )
                 .append(space())
                 .append(translatable("multiplayer.player.left")
-                        .args(playerMention(player))
+                        .args(playerMention(player, INACTIVE_COLOR))
                 );
     }
 
