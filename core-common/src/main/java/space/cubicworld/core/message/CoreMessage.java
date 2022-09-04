@@ -117,17 +117,25 @@ public class CoreMessage {
     }
 
     public TextColor mentionColor(TextColor color) {
-        return color == null ? MENTION_COLOR : color;
+        return orDefault(color, MENTION_COLOR);
+    }
+
+    public TextColor orDefault(TextColor color, TextColor defaultColor) {
+        return color == null ? defaultColor : color;
     }
 
     public Component playerMention(CoreLightPlayer player) {
+        return playerMention(player, MENTION_COLOR);
+    }
+
+    public Component playerMention(CoreLightPlayer player, TextColor defaultColor) {
         return text(player.getName())
                 .hoverEvent(HoverEvent.showEntity(
                         Key.key("minecraft", "player"),
                         player.getId()
                 ))
                 .clickEvent(ClickEvent.runCommand("/tell %s".formatted(player.getName())))
-                .color(mentionColor(player.getResolvedGlobalColor()));
+                .color(orDefault(player.getResolvedGlobalColor(), defaultColor));
     }
 
     public Component playerReputation(CorePlayer player) {
@@ -389,7 +397,7 @@ public class CoreMessage {
                         .append(space())
                         .append(text(">")
                                 .decorate(TextDecoration.BOLD)
-                                .color(sender.getResolvedGlobalColor())
+                                .color(orDefault(sender.getResolvedGlobalColor(), NamedTextColor.GRAY))
                         )
                         .append(space())
                 )
