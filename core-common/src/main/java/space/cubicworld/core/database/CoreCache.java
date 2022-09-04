@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalNotification;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,32 +15,25 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
-class CoreCache<K, S, M> {
+abstract class CoreCache<K, S, M> {
 
-    interface Functions<K, S, M> {
+    protected abstract S getSecondary(M model);
 
-        S getSecondary(M model);
+    protected abstract K getKey(M model);
 
-        K getKey(M model);
+    protected abstract M fetch(ResultSet resultSet) throws SQLException;
 
-        M fetch(ResultSet resultSet) throws SQLException;
+    protected abstract Connection getConnection();
 
-        Connection getConnection();
+    protected abstract String getKeyStatement();
 
-        String getKeyStatement();
+    protected abstract String getSecondaryStatement();
 
-        String getSecondaryStatement();
+    protected abstract void updateDatabase(M model) throws SQLException;
 
-        void update(M model) throws SQLException;
-
-        void remove(M model) throws SQLException;
-
-    }
+    protected abstract void removeDatabase(M model) throws SQLException;
 
     private static final Duration DEFAULT_DURATION = Duration.ofHours(1);
-
-    private final Map<S, Object> secondaryLocks = new ConcurrentHashMap<>();
-    private final Map<K, Object> keyLocks = new ConcurrentHashMap<>();
 
     private final Cache<K, Optional<M>> modelCache = CacheBuilder
             .newBuilder()
@@ -49,93 +43,69 @@ class CoreCache<K, S, M> {
             .build();
     private final Map<S, Optional<K>> secondaryCache = new ConcurrentHashMap<>();
 
-    private final Functions<K, S, M> functions;
-
     private void removalListener(RemovalNotification<K, Optional<M>> notification) {
         notification.getValue().ifPresent(model ->
-                secondaryCache.remove(functions.getSecondary(model))
+                secondaryCache.remove(getSecondary(model))
         );
     }
 
-    private Object defaultLock(Object key) {
-        return new Object[0];
+    public Optional<M> fetchByKey(K key) {
+        return modelCache.asMap()
+                .computeIfAbsent(key, this::fetchNewByKey);
     }
 
-    public Optional<M> fetchByKey(K key) throws SQLException {
-        Optional<M> result = modelCache.getIfPresent(key);
-        if (result != null) return result;
-        synchronized (keyLocks.computeIfAbsent(key, this::defaultLock)) {
-            result = modelCache.getIfPresent(key);
-            if (result != null) {
-                keyLocks.remove(key);
-                return result;
-            }
-            try (Connection connection = functions.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(functions.getKeyStatement())) {
-                statement.setObject(1, key instanceof UUID ? key.toString() : key);
-                ResultSet resultSet = statement.executeQuery();
-                if (resultSet.next()) result = Optional.ofNullable(functions.fetch(resultSet));
-                else result = Optional.empty();
-                resultSet.close();
-            }
-            keyLocks.remove(key);
-            modelCache.put(key, result);
-            result.ifPresent(model -> secondaryCache.put(functions.getSecondary(model), Optional.of(key)));
+    @SneakyThrows
+    private Optional<M> fetchNewByKey(K key) {
+        Optional<M> result;
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(getKeyStatement())) {
+            statement.setObject(1, key instanceof UUID ? key.toString() : key);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) result = Optional.ofNullable(fetch(resultSet));
+            else result = Optional.empty();
+            resultSet.close();
         }
+        result.ifPresent(model -> secondaryCache.put(
+                getSecondary(model),
+                Optional.of(key)
+        ));
         return result;
     }
 
-    public Optional<M> fetchBySecondary(S secondary) throws SQLException {
-        K key = fetchKeyBySecondary(secondary);
-        if (key == null) return Optional.empty();
-        Optional<M> model = modelCache.getIfPresent(key);
-        if (model == null) return Optional.empty();
-        return model;
+    public Optional<M> fetchBySecondary(S secondary) {
+        return secondaryCache
+                .computeIfAbsent(secondary, this::fetchKeyBySecondary)
+                .flatMap(this::fetchByKey);
     }
 
-    private K fetchKeyBySecondary(S secondary) throws SQLException {
-        Optional<K> key = secondaryCache.get(secondary);
-        if (key != null && key.isPresent()) return key.get();
-        synchronized (secondaryLocks.computeIfAbsent(secondary, this::defaultLock)) {
-            key = secondaryCache.get(secondary);
-            if (key != null && key.isPresent()) {
-                secondaryLocks.remove(secondary);
-                return key.get();
-            }
-            try (Connection connection = functions.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(functions.getSecondaryStatement())) {
-                statement.setObject(1, secondary instanceof UUID ? secondary.toString() : secondary);
-                ResultSet resultSet = statement.executeQuery();
-                if (resultSet.next()) {
-                    M model = functions.fetch(resultSet);
-                    K modelKey = functions.getKey(model);
-                    if (modelCache.getIfPresent(modelKey) != null) return modelKey;
-                    synchronized (keyLocks.computeIfAbsent(modelKey, this::defaultLock)) {
-                        if (modelCache.getIfPresent(modelKey) != null) return modelKey;
-                        modelCache.put(modelKey, Optional.ofNullable(model));
-                    }
-                    keyLocks.remove(modelKey);
-                    key = Optional.of(modelKey);
-                }
-                else key = Optional.empty();
-            }
-            secondaryCache.put(secondary, key);
-            secondaryLocks.remove(secondary);
+    @SneakyThrows
+    private Optional<K> fetchKeyBySecondary(S secondary) {
+        Optional<K> key;
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(getSecondaryStatement())) {
+            statement.setObject(1, secondary instanceof UUID ? secondary.toString() : secondary);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                M model = fetch(resultSet);
+                K modelKey = getKey(model);
+                modelCache.asMap().putIfAbsent(modelKey, Optional.ofNullable(model));
+                key = Optional.of(modelKey);
+            } else key = Optional.empty();
         }
-        return key.orElse(null);
+        return key;
     }
 
     public List<M> justFetch(String sql, Object... objects) throws SQLException {
-        try (Connection connection = functions.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
             int counter = 0;
-            for (Object object: objects) {
+            for (Object object : objects) {
                 statement.setObject(++counter, object instanceof UUID ? object.toString() : object);
             }
             ResultSet resultSet = statement.executeQuery();
             List<M> result = new ArrayList<>();
             while (resultSet.next()) {
-                M model = functions.fetch(resultSet);
+                M model = fetch(resultSet);
                 result.add(model);
                 cacheIfNeed(model);
             }
@@ -145,41 +115,29 @@ class CoreCache<K, S, M> {
     }
 
     public void remove(M model) throws SQLException {
-        functions.remove(model);
+        removeDatabase(model);
         removeCache(model);
-        Object keyLock = keyLocks.get(functions.getKey(model));
-        if (keyLock != null) {
-            synchronized (keyLock) {
-                removeCache(model);
-            }
-        }
-        Object secondaryLock = secondaryLocks.get(functions.getSecondary(model));
-        if (secondaryLock != null) {
-            synchronized (secondaryLock) {
-                removeCache(model);
-            }
-        }
     }
 
     private void removeCache(M model) {
-        modelCache.put(functions.getKey(model), Optional.empty());
-        secondaryCache.put(functions.getSecondary(model), Optional.empty());
+        modelCache.put(getKey(model), Optional.empty());
+        secondaryCache.put(getSecondary(model), Optional.empty());
     }
 
     public void update(M model) throws SQLException {
-        functions.update(model);
+        updateDatabase(model);
     }
 
     public void cacheIfNeed(M model) {
-        K key = functions.getKey(model);
-        S secondary = functions.getSecondary(model);
+        K key = getKey(model);
+        S secondary = getSecondary(model);
         if (modelCache.getIfPresent(key) == null) modelCache.put(key, Optional.ofNullable(model));
         secondaryCache.putIfAbsent(secondary, Optional.of(key));
     }
 
     public void cache(M model) {
-        modelCache.put(functions.getKey(model), Optional.of(model));
-        secondaryCache.put(functions.getSecondary(model), Optional.of(functions.getKey(model)));
+        modelCache.put(getKey(model), Optional.of(model));
+        secondaryCache.put(getSecondary(model), Optional.of(getKey(model)));
     }
 
     public void changeSecondaryKey(S previousKey, S newKey) {

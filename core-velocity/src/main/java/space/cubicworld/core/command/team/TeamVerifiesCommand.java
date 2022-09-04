@@ -6,6 +6,7 @@ import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.event.TeamCreateEvent;
+import space.cubicworld.core.event.TeamDeleteEvent;
 import space.cubicworld.core.event.TeamVerifyEvent;
 import space.cubicworld.core.message.CoreMessage;
 
@@ -65,6 +66,13 @@ public class TeamVerifiesCommand extends AbstractCoreCommand<VelocityCoreCommand
     public void create(TeamCreateEvent event) {
         if (!event.getTeam().isVerified()) {
             unVerified.add(event.getTeam().getId());
+        }
+    }
+
+    @Subscribe
+    public void delete(TeamDeleteEvent event) {
+        if (!event.getTeam().isVerified()) {
+            unVerified.remove(event.getTeam().getId());
         }
     }
 }

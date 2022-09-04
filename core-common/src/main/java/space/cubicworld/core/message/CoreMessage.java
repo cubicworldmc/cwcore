@@ -192,9 +192,15 @@ public class CoreMessage {
     }
 
     public Component teamInvite(CorePlayer inviter, CoreTeam team) {
-        return translatable("cwcore.team.invite")
-                .args(playerMention(inviter), teamMention(team))
-                .color(SUCCESS_COLOR);
+        return empty()
+                .append(translatable("cwcore.team.invite")
+                        .args(playerMention(inviter), teamMention(team))
+                        .color(INFORMATION_COLOR)
+                )
+                .append(space())
+                .append(clickable(translatable("cwcore.join")
+                        .clickEvent(ClickEvent.runCommand("/team join " + team.getName()))
+                ));
     }
 
     public Component notInvited(CoreTeam team) {
@@ -397,7 +403,7 @@ public class CoreMessage {
                         .append(space())
                         .append(text(">")
                                 .decorate(TextDecoration.BOLD)
-                                .color(orDefault(sender.getResolvedGlobalColor(), NamedTextColor.GRAY))
+                                .color(orDefault(sender.getResolvedGlobalColor(), INACTIVE_COLOR))
                         )
                         .append(space())
                 )
@@ -670,11 +676,11 @@ public class CoreMessage {
         return empty()
                 .append(text(">")
                         .decorate(TextDecoration.BOLD)
-                        .color(mentionColor(player.getResolvedGlobalColor()))
+                        .color(orDefault(player.getResolvedGlobalColor(), INACTIVE_COLOR))
                 )
                 .append(space())
                 .append(translatable("multiplayer.player.joined")
-                        .args(playerMention(player))
+                        .args(playerMention(player, INACTIVE_COLOR))
                 );
     }
 

@@ -21,153 +21,151 @@ public class CoreDatabaseImpl implements CoreDatabase {
     private final HikariDataSource dataSource;
 
     @Getter
-    private final CoreCache<UUID, String, CorePlayer> playerCache = new CoreCache<>(
-            new CoreCache.Functions<>() {
-                @Override
-                public String getSecondary(CorePlayer model) {
-                    return model.getName();
-                }
+    private final CoreCache<UUID, String, CorePlayer> playerCache = new CoreCache<>() {
 
-                @Override
-                public UUID getKey(CorePlayer model) {
-                    return model.getId();
-                }
+        @Override
+        public String getSecondary(CorePlayer model) {
+            return model.getName();
+        }
 
-                @Override
-                public CorePlayer fetch(ResultSet resultSet) throws SQLException {
-                    CorePlayerImpl result = new CorePlayerImpl(
-                            CoreDatabaseImpl.this,
-                            UUID.fromString(resultSet.getString(1)),
-                            resultSet.getString(2)
-                    );
-                    result.setRawReputation(resultSet.getInt(3));
-                    result.setGlobalColor(CoreColor.fromInteger(resultSet.getInt(4)));
-                    result.setSelectedTeamId(resultSet.getObject(5, Integer.class));
-                    result.setInactiveBoosts(resultSet.getInt(6));
-                    return result;
-                }
+        @Override
+        public UUID getKey(CorePlayer model) {
+            return model.getId();
+        }
 
-                @Override
-                public Connection getConnection() {
-                    return CoreDatabaseImpl.this.getConnection();
-                }
+        @Override
+        public CorePlayer fetch(ResultSet resultSet) throws SQLException {
+            CorePlayerImpl result = new CorePlayerImpl(
+                    CoreDatabaseImpl.this,
+                    UUID.fromString(resultSet.getString(1)),
+                    resultSet.getString(2)
+            );
+            result.setRawReputation(resultSet.getInt(3));
+            result.setGlobalColor(CoreColor.fromInteger(resultSet.getInt(4)));
+            result.setSelectedTeamId(resultSet.getObject(5, Integer.class));
+            result.setInactiveBoosts(resultSet.getInt(6));
+            return result;
+        }
 
-                @Override
-                public String getKeyStatement() {
-                    return "SELECT * FROM players WHERE uuid = ?";
-                }
+        @Override
+        public Connection getConnection() {
+            return CoreDatabaseImpl.this.getConnection();
+        }
 
-                @Override
-                public String getSecondaryStatement() {
-                    return "SELECT * FROM players WHERE name = ?";
-                }
+        @Override
+        public String getKeyStatement() {
+            return "SELECT * FROM players WHERE uuid = ?";
+        }
 
-                @Override
-                public void update(CorePlayer model) throws SQLException {
-                    try (Connection connection = getConnection();
-                         PreparedStatement statement = connection.prepareStatement("""
-                                 UPDATE players
-                                 SET name = ?, reputation = ?, global_color = ?, selected_team_id = ?, boosts = ?
-                                 WHERE uuid = ?
-                                 """
-                         )
-                    ) {
-                        statement.setString(1, model.getName());
-                        statement.setInt(2, model.getReputation());
-                        statement.setObject(3, model.getGlobalColor().toInteger());
-                        statement.setObject(4, model.getSelectedTeamId());
-                        statement.setInt(5, model.getInactiveBoosts());
-                        statement.setString(6, model.getId().toString());
-                        statement.executeUpdate();
-                    }
-                }
+        @Override
+        public String getSecondaryStatement() {
+            return "SELECT * FROM players WHERE name = ?";
+        }
 
-                @Override
-                public void remove(CorePlayer model) throws SQLException {
-                    try (Connection connection = getConnection();
-                         PreparedStatement statement = connection.prepareStatement("""
-                                 DELETE FROM players WHERE uuid = ?
-                                 """)
-                    ) {
-                        statement.setString(1, model.getId().toString());
-                        statement.executeUpdate();
-                    }
-                }
+        @Override
+        public void updateDatabase(CorePlayer model) throws SQLException {
+            try (Connection connection = getConnection();
+                 PreparedStatement statement = connection.prepareStatement("""
+                         UPDATE players
+                         SET name = ?, reputation = ?, global_color = ?, selected_team_id = ?, boosts = ?
+                         WHERE uuid = ?
+                         """
+                 )
+            ) {
+                statement.setString(1, model.getName());
+                statement.setInt(2, model.getReputation());
+                statement.setObject(3, model.getGlobalColor().toInteger());
+                statement.setObject(4, model.getSelectedTeamId());
+                statement.setInt(5, model.getInactiveBoosts());
+                statement.setString(6, model.getId().toString());
+                statement.executeUpdate();
             }
-    );
+        }
+
+        @Override
+        public void removeDatabase(CorePlayer model) throws SQLException {
+            try (Connection connection = getConnection();
+                 PreparedStatement statement = connection.prepareStatement("""
+                         DELETE FROM players WHERE uuid = ?
+                         """)
+            ) {
+                statement.setString(1, model.getId().toString());
+                statement.executeUpdate();
+            }
+        }
+    };
 
     @Getter
-    private final CoreCache<Integer, String, CoreTeam> teamCache = new CoreCache<>(
-            new CoreCache.Functions<>() {
-                @Override
-                public String getSecondary(CoreTeam model) {
-                    return model.getName();
-                }
+    private final CoreCache<Integer, String, CoreTeam> teamCache = new CoreCache<>() {
+        @Override
+        public String getSecondary(CoreTeam model) {
+            return model.getName();
+        }
 
-                @Override
-                public Integer getKey(CoreTeam model) {
-                    return model.getId();
-                }
+        @Override
+        public Integer getKey(CoreTeam model) {
+            return model.getId();
+        }
 
-                @Override
-                public CoreTeam fetch(ResultSet resultSet) throws SQLException {
-                    CoreTeamImpl result = new CoreTeamImpl(
-                            CoreDatabaseImpl.this,
-                            resultSet.getInt(1),
-                            resultSet.getString(2),
-                            UUID.fromString(resultSet.getString(6))
-                    );
-                    result.setDescription(resultSet.getString(3));
-                    result.setVerified(resultSet.getBoolean(4));
-                    result.setHide(resultSet.getBoolean(5));
-                    return result;
-                }
+        @Override
+        public CoreTeam fetch(ResultSet resultSet) throws SQLException {
+            CoreTeamImpl result = new CoreTeamImpl(
+                    CoreDatabaseImpl.this,
+                    resultSet.getInt(1),
+                    resultSet.getString(2),
+                    UUID.fromString(resultSet.getString(6))
+            );
+            result.setDescription(resultSet.getString(3));
+            result.setVerified(resultSet.getBoolean(4));
+            result.setHide(resultSet.getBoolean(5));
+            return result;
+        }
 
-                @Override
-                public Connection getConnection() {
-                    return CoreDatabaseImpl.this.getConnection();
-                }
+        @Override
+        public Connection getConnection() {
+            return CoreDatabaseImpl.this.getConnection();
+        }
 
-                @Override
-                public String getKeyStatement() {
-                    return "SELECT * FROM teams WHERE id = ?";
-                }
+        @Override
+        public String getKeyStatement() {
+            return "SELECT * FROM teams WHERE id = ?";
+        }
 
-                @Override
-                public String getSecondaryStatement() {
-                    return "SELECT * FROM teams WHERE name = ?";
-                }
+        @Override
+        public String getSecondaryStatement() {
+            return "SELECT * FROM teams WHERE name = ?";
+        }
 
-                @Override
-                public void update(CoreTeam model) throws SQLException {
-                    try (Connection connection = getConnection();
-                         PreparedStatement statement = connection.prepareStatement("""
-                                 UPDATE teams
-                                 SET name = ?, description = ?, verified = ?, hide = ?, owner_uuid = ?
-                                 WHERE id = ?
-                                 """)) {
-                        statement.setString(1, model.getName());
-                        statement.setString(2, model.getDescription());
-                        statement.setBoolean(3, model.isVerified());
-                        statement.setBoolean(4, model.isHide());
-                        statement.setString(5, model.getOwnerId().toString());
-                        statement.setInt(6, model.getId());
-                        statement.executeUpdate();
-                    }
-                }
-
-                @Override
-                public void remove(CoreTeam model) throws SQLException {
-                    try (Connection connection = getConnection();
-                         PreparedStatement statement = connection.prepareStatement("""
-                                 DELETE FROM teams WHERE id = ?
-                                 """)) {
-                        statement.setInt(1, model.getId());
-                        statement.executeUpdate();
-                    }
-                }
+        @Override
+        public void updateDatabase(CoreTeam model) throws SQLException {
+            try (Connection connection = getConnection();
+                 PreparedStatement statement = connection.prepareStatement("""
+                         UPDATE teams
+                         SET name = ?, description = ?, verified = ?, hide = ?, owner_uuid = ?
+                         WHERE id = ?
+                         """)) {
+                statement.setString(1, model.getName());
+                statement.setString(2, model.getDescription());
+                statement.setBoolean(3, model.isVerified());
+                statement.setBoolean(4, model.isHide());
+                statement.setString(5, model.getOwnerId().toString());
+                statement.setInt(6, model.getId());
+                statement.executeUpdate();
             }
-    );
+        }
+
+        @Override
+        public void removeDatabase(CoreTeam model) throws SQLException {
+            try (Connection connection = getConnection();
+                 PreparedStatement statement = connection.prepareStatement("""
+                         DELETE FROM teams WHERE id = ?
+                         """)) {
+                statement.setInt(1, model.getId());
+                statement.executeUpdate();
+            }
+        }
+    };
+
     @Getter
     private final CoreRelationCache relationCache = new CoreRelationCache(this);
     @Getter
@@ -379,13 +377,13 @@ public class CoreDatabaseImpl implements CoreDatabase {
     @Override
     @SneakyThrows
     public void update(CorePlayer player) {
-        playerCache.update(player);
+        playerCache.updateDatabase(player);
     }
 
     @Override
     @SneakyThrows
     public void update(CoreTeam team) {
-        teamCache.update(team);
+        teamCache.updateDatabase(team);
     }
 
     @Override
@@ -420,13 +418,13 @@ public class CoreDatabaseImpl implements CoreDatabase {
     @Override
     @SneakyThrows
     public void remove(CorePlayer player) {
-        playerCache.remove(player);
+        playerCache.removeDatabase(player);
     }
 
     @Override
     @SneakyThrows
     public void remove(CoreTeam team) {
-        teamCache.remove(team);
+        teamCache.removeDatabase(team);
     }
 
     @Override

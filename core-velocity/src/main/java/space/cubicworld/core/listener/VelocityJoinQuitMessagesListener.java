@@ -28,14 +28,14 @@ public class VelocityJoinQuitMessagesListener {
                     Optional.ofNullable(previous).map(RegisteredServer::getPlayersConnected)
                             .ifPresent(players -> players.stream()
                                     .filter(player -> !player.getUniqueId().equals(corePlayer.getId()))
-                                    .forEach(player -> VelocityCoreCommandSource.sendLocaleMessage(
+                                    .forEach(player -> VelocityCoreCommandSource.sendSmallLocaleMessage(
                                             player, quitMessage
                                     ))
                             );
                     Optional.ofNullable(next).map(RegisteredServer::getPlayersConnected)
                             .ifPresent(players -> players.stream()
                                     .filter(player -> !player.getUniqueId().equals(corePlayer.getId()))
-                                    .forEach(player -> VelocityCoreCommandSource.sendLocaleMessage(
+                                    .forEach(player -> VelocityCoreCommandSource.sendSmallLocaleMessage(
                                             player, joinMessage
                                     ))
                             );
