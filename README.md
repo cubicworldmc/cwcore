@@ -24,6 +24,7 @@ CWCore is core plugin for Cubic
 - /color - sends menu to choose your color
 - /profile about <player_name=your_name> - sends profile of the player
 - /top teams - sends top of teams by reputation
+- /boost - opens boost menu
 
 ### Translation system
 
