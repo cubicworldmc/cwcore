@@ -11,10 +11,7 @@ import space.cubicworld.core.color.CoreColor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
 public class CoreDatabaseImpl implements CoreDatabase {
 
@@ -282,18 +279,12 @@ public class CoreDatabaseImpl implements CoreDatabase {
 
     @Override
     public List<CoreTeam> fetchTeamReputationTop() {
-        return topCache.getTeamReputationTop()
-                .stream()
-                .map(id -> fetchTeam(id).orElseThrow())
-                .toList();
+        return Collections.emptyList();
     }
 
     @Override
     public List<CorePlayer> fetchPlayerReputationTop() {
-        return topCache.getPlayerReputationTop()
-                .stream()
-                .map(id -> fetchPlayer(id).orElseThrow())
-                .toList();
+        return Collections.emptyList();
     }
 
     @Override
@@ -319,7 +310,6 @@ public class CoreDatabaseImpl implements CoreDatabase {
             keys.close();
             CoreTeam team = new CoreTeamImpl(this, teamId, name, owner);
             teamCache.cache(team);
-            topCache.newTeam(team.getId());
             return team;
         }
     }
@@ -340,7 +330,6 @@ public class CoreDatabaseImpl implements CoreDatabase {
             statement.executeUpdate();
             CorePlayer player = new CorePlayerImpl(this, id, name);
             playerCache.cache(player);
-            topCache.newPlayer(id);
             return player;
         }
     }

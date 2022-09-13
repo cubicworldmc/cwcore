@@ -55,7 +55,6 @@ class CorePlayerImpl implements CorePlayer {
             offset = reputation - this.reputation;
             this.reputation = reputation;
         }
-        database.getTopCache().updateReputation(id, offset);
     }
 
     public void setRawReputation(int reputation) {
