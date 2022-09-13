@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -33,7 +34,7 @@ public abstract class CoreOrderedPageContainer<T> {
 
     }
 
-    private final List<Page<T>> pages = new ArrayList<>();
+    private final List<Page<T>> pages = new LinkedList<>();
 
     protected final int maximumPageSize;
 
