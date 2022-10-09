@@ -30,10 +30,12 @@ public class TeamInvitesCommand extends AbstractCoreCommand<VelocityCoreCommandS
             return;
         }
         int page = args.hasNext() ? Integer.parseInt(args.next()) - 1 : 0;
-        CorePlayer corePlayer = plugin.getDatabase()
+        plugin.getDatabase()
                 .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
-        source.sendMessage(CoreMessage.teamInvitesPage(corePlayer, page));
+                .flatMap(corePlayer -> CoreMessage.teamInvitesPage(corePlayer, page))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

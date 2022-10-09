@@ -17,11 +17,18 @@ allprojects {
         }
     }
 
+    shadowJar {
+        if (project.hasProperty('dir')) {
+            destinationDir(new File((String) project.getProperties().get('dir')))
+        }
+    }
+
     repositories {
         mavenCentral()
     }
 
     dependencies {
+        implementation 'dev.miku:r2dbc-mysql:0.8.2.RELEASE'
         compileOnly 'net.kyori:adventure-api:4.11.0'
         compileOnly 'org.projectlombok:lombok:1.18.24'
         annotationProcessor 'org.projectlombok:lombok:1.18.24'

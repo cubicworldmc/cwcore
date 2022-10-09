@@ -28,12 +28,12 @@ public class BoostInfoCommand extends AbstractCoreCommand<VelocityCoreCommandSou
             return;
         }
         int page = args.hasNext() ? Integer.parseInt(args.next()) - 1 : 0;
-        source.sendMessage(CoreMessage.boostMenu(
-                plugin.getDatabase()
-                        .fetchPlayer(player.getUniqueId())
-                        .orElseThrow(),
-                page
-        ));
+        plugin.getDatabase()
+                .fetchPlayer(player.getUniqueId())
+                .flatMap(corePlayer -> CoreMessage.boostMenu(corePlayer, page))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

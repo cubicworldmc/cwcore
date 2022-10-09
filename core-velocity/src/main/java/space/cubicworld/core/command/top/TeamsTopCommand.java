@@ -22,9 +22,13 @@ public class TeamsTopCommand extends AbstractCoreCommand<VelocityCoreCommandSour
 
     @Override
     public void execute(VelocityCoreCommandSource source, Iterator<String> args) {
-        source.sendMessage(CoreMessage.teamsReputationTop(
-                plugin.getDatabase().fetchTeamReputationTop()
-        ));
+        int page = args.hasNext() ? Integer.parseInt(args.next()) - 1 : 0;
+        plugin.getDatabase().fetchTeamReputationTop(page)
+                .collectList()
+                .flatMap(CoreMessage::teamsReputationTop)
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

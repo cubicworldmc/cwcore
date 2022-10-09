@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.format.TextColor;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.CorePlayer;
 
@@ -16,26 +17,28 @@ public class VelocityCoreResolver implements CoreResolver {
     private final VelocityPlugin plugin;
 
     @Override
-    public TextColor resolve(CorePlayer player, CoreColor color) {
+    public Mono<TextColor> resolve(CorePlayer player, CoreColor color) {
         if (color.isIndex()) {
-            return plugin.getCore()
+            return Mono.justOrEmpty(plugin
+                    .getCore()
                     .getColorIndexContainer()
                     .getColor(color.getIndex(), player)
-                    .orElse(null);
+            );
         }
         boolean premiumCounts = plugin.getConfig().getOrElse("premium.custom-color", true);
         return plugin.getServer()
                 .getPlayer(player.getId())
                 .filter(it -> it.getPermissionValue("cwcore.color.custom") == Tristate.TRUE)
-                .map(it -> color.getCustom())
-                .orElseGet(() ->
-                        !premiumCounts || plugin.getDatabase().fetchPlayerBoosts(player.getId()).isEmpty() ?
-                                null : color.getCustom()
+                .map(it -> Mono.justOrEmpty(color.getCustom()))
+                .orElseGet(() -> premiumCounts ? Mono.empty() :
+                        plugin.getDatabase().fetchPlayerBoostsCount(player.getId())
+                                .filter(boostsCount -> boostsCount != 0)
+                                .map(it -> color.getCustom())
                 );
     }
 
     @Override
-    public int getTeamLimit(int upgradeLevel) {
-        return 15 + upgradeLevel * 5;
+    public Mono<Long> getTeamLimit(long upgradeLevel) {
+        return Mono.just(15 + upgradeLevel * 5);
     }
 }

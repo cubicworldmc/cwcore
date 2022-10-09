@@ -2,6 +2,7 @@ package space.cubicworld.core.command.profile;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -36,10 +37,11 @@ public class ProfileAboutCommand extends AbstractCoreCommand<VelocityCoreCommand
         }
         plugin.getDatabase()
                 .fetchPlayer(playerName)
-                .ifPresentOrElse(
-                        player -> source.sendMessage(CoreMessage.profile(player)),
-                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
-                );
+                .flatMap(CoreMessage::profile).map(it -> (Component) it)
+                .defaultIfEmpty(CoreMessage.playerNotExist(playerName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

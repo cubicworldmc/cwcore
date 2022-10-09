@@ -1,13 +1,14 @@
 package space.cubicworld.core;
 
 import net.kyori.adventure.text.format.TextColor;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.CorePlayer;
 
 public interface CoreResolver {
 
-    TextColor resolve(CorePlayer player, CoreColor color);
+    Mono<TextColor> resolve(CorePlayer player, CoreColor color);
 
-    int getTeamLimit(int upgradeLevel);
+    Mono<Long> getTeamLimit(long upgradeLevel);
 
 }

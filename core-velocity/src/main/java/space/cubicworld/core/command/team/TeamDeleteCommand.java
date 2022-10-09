@@ -40,20 +40,16 @@ public class TeamDeleteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         plugin.getDatabase()
                 .fetchTeam(teamName)
                 .filter(team -> team.getOwnerId().equals(player.getUniqueId()) || force)
-                .ifPresentOrElse(
-                        team -> {
-                            if (!force && !confirm){
-                                source.sendMessage(CoreMessage.teamDeleteConfirm(team));
-                                return;
-                            }
-                            plugin.getDatabase().remove(team);
-                            plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamDeleteEvent(team)
-                            );
-                            source.sendMessage(CoreMessage.teamDeleted(team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamDeleteCanNot(teamName))
-                );
+                .flatMap(team -> !force && !confirm ?
+                        CoreMessage.teamDeleteConfirm(team) :
+                        plugin.getDatabase().remove(team)
+                                .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(new TeamDeleteEvent(team)))
+                                .then(CoreMessage.teamDeleted(team))
+                )
+                .defaultIfEmpty(CoreMessage.teamDeleteCanNot(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

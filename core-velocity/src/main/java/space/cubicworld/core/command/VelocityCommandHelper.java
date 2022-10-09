@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @RequiredArgsConstructor
 public class VelocityCommandHelper {

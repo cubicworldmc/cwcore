@@ -1,11 +1,14 @@
 package space.cubicworld.core.command.team;
 
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
+import space.cubicworld.core.util.MessageUtils;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -34,34 +37,33 @@ public class TeamSettingsCommand extends AbstractCoreCommand<VelocityCoreCommand
         }
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            switch (args.next().toLowerCase(Locale.ROOT)) {
-                                case "description" -> {
-                                    StringBuilder stringBuilder = new StringBuilder();
-                                    args.forEachRemaining(str -> stringBuilder.append(str).append(' '));
-                                    String description = stringBuilder.isEmpty() ?
-                                            null :
-                                            stringBuilder.substring(0, stringBuilder.length() - 1);
-                                    team.setDescription(description);
-                                    source.sendMessage(CoreMessage.teamSettingsDescriptionUpdated(team));
-                                }
-                                case "hide" -> {
-                                    String nextArg = args.hasNext() ?
-                                            args.next().toLowerCase(Locale.ROOT) : null;
-                                    if (nextArg == null || (!nextArg.equals("true") && !nextArg.equals("false"))) {
-                                        source.sendMessage(CoreMessage.teamSettingsHideBad());
-                                        return;
-                                    }
-                                    boolean value = nextArg.equals("true");
-                                    team.setHide(value);
-                                    source.sendMessage(CoreMessage.teamSettingsHideUpdated(team, value));
-                                }
+                .flatMap(team -> {
+                    boolean updated = false;
+                    Mono<? extends Component> message = switch (args.next().toLowerCase(Locale.ROOT)) {
+                        case "description" -> {
+                            updated = true;
+                            team.setDescription(MessageUtils.buildMessage(args));
+                            yield CoreMessage.teamSettingsDescriptionUpdated(team);
+                        }
+                        case "hide" -> {
+                            updated = true;
+                            String nextArg = args.hasNext() ?
+                                    args.next().toLowerCase(Locale.ROOT) : null;
+                            if (nextArg == null || (!nextArg.equals("true") && !nextArg.equals("false"))) {
+                                yield Mono.just(CoreMessage.teamSettingsHideBad());
                             }
-                            plugin.getDatabase().update(team);
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                            boolean value = nextArg.equals("true");
+                            team.setHide(value);
+                            yield CoreMessage.teamSettingsHideUpdated(team, value);
+                        }
+                        default -> Mono.just(CoreMessage.teamProvideSettingsValueType());
+                    };
+                    return updated ? plugin.getDatabase().update(team).then(message) : message;
+                })
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

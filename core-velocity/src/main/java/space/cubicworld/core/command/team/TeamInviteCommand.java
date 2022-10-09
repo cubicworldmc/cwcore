@@ -2,6 +2,7 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -44,33 +45,31 @@ public class TeamInviteCommand extends AbstractCoreCommand<VelocityCoreCommandSo
                 .getDatabase()
                 .fetchTeam(teamName)
                 .filter(team -> team.getOwnerId().equals(player.getUniqueId()))
-                .ifPresentOrElse(
-                        team -> plugin.getDatabase()
-                                .fetchPlayer(playerName)
-                                .ifPresentOrElse(
-                                        invited -> {
-                                            CorePTRelation relation = plugin.getDatabase()
-                                                    .fetchPTRelation(invited.getId(), team.getId())
-                                                    .orElseThrow();
-                                            switch (relation.getValue()) {
-                                                case INVITE ->
-                                                        source.sendMessage(CoreMessage.teamInvitedAlready(invited, team));
-                                                case MEMBERSHIP ->
-                                                        source.sendMessage(CoreMessage.alreadyInTeam(invited, team));
-                                                case NONE -> {
-                                                    relation.setValue(CorePTRelation.Value.INVITE);
-                                                    plugin.getDatabase().update(relation);
-                                                    plugin.getServer().getEventManager().fireAndForget(
-                                                            new TeamInviteEvent(player, invited, team)
-                                                    );
-                                                    source.sendMessage(CoreMessage.teamInvitationSend(invited, team));
-                                                }
+                .flatMap(team -> plugin.getDatabase()
+                        .fetchPlayer(playerName)
+                        .flatMap(invited -> plugin.getDatabase()
+                                .fetchPTRelation(invited.getId(), team.getId())
+                                .flatMap(relation ->
+                                        switch (relation.getValue()) {
+                                            case INVITE, READ -> CoreMessage.teamInvitedAlready(invited, team);
+                                            case MEMBERSHIP -> CoreMessage.alreadyInTeam(invited, team);
+                                            case NONE -> {
+                                                relation.setValue(CorePTRelation.Value.INVITE);
+                                                yield plugin.getDatabase().update(relation)
+                                                        .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
+                                                                new TeamInviteEvent(player, invited, team)
+                                                        ))
+                                                        .then(CoreMessage.teamInvitationSend(invited, team));
                                             }
-                                        },
-                                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
-                                ),
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                                        }
+                                )
+                        )
+                        .defaultIfEmpty(CoreMessage.playerNotExist(playerName))
+                )
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

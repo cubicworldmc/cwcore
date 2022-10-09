@@ -1,6 +1,7 @@
 package space.cubicworld.core.database;
 
 import org.jetbrains.annotations.NotNull;
+import reactor.core.publisher.Mono;
 
 import java.sql.Time;
 
@@ -9,10 +10,10 @@ public interface CorePrivateMessage {
     long getId();
 
     @NotNull
-    CorePlayer getSender();
+    Mono<CorePlayer> getSender();
 
     @NotNull
-    CorePlayer getReceiver();
+    Mono<CorePlayer> getReceiver();
 
     @NotNull
     String getMessage();

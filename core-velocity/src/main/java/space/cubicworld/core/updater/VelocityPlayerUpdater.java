@@ -9,6 +9,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.CoreStatic;
 import space.cubicworld.core.VelocityPlugin;
+import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.event.ColorChangeEvent;
 import space.cubicworld.core.event.ReputationChangeEvent;
 import space.cubicworld.core.json.CoreJsonObjectMapper;
@@ -31,6 +32,12 @@ public class VelocityPlayerUpdater {
                 ));
     }
 
+    public void update(CorePlayer player) {
+        player.asLight()
+                .doOnNext(this::update)
+                .subscribe();
+    }
+
     @Subscribe
     public void colorChange(ColorChangeEvent event) {
         update(event.getPlayer());
@@ -40,7 +47,8 @@ public class VelocityPlayerUpdater {
     public void serverChange(ServerPostConnectEvent event) {
         plugin.getDatabase()
                 .fetchPlayer(event.getPlayer().getUniqueId())
-                .ifPresent(this::update);
+                .doOnNext(this::update)
+                .subscribe();
     }
 
     @Subscribe

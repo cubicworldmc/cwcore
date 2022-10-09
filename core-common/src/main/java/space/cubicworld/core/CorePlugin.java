@@ -4,7 +4,7 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import space.cubicworld.core.color.CoreColorIndexContainer;
 import space.cubicworld.core.database.CoreDatabase;
-import space.cubicworld.core.database.CoreDatabaseImpl;
+import space.cubicworld.core.database.nocache.CoreNoCacheDatabase;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -21,19 +21,16 @@ public class CorePlugin {
             String mysqlUsername,
             String mysqlPassword,
             String mysqlDatabase,
-            ClassLoader loader,
-            Logger logger,
+            ClassLoader classLoader,
             CoreResolver resolver,
             Map<String, String> colors
-    ) throws ClassNotFoundException, SQLException, IOException {
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        database = new CoreDatabaseImpl(
+    ) throws IOException {
+        database = new CoreNoCacheDatabase(
                 mysqlHost,
                 mysqlUsername,
                 mysqlPassword,
                 mysqlDatabase,
-                loader,
-                logger,
+                classLoader,
                 resolver
         );
         colorIndexContainer = new CoreColorIndexContainer(colors);

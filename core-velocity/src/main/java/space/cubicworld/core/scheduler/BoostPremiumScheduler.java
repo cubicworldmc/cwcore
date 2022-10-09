@@ -8,6 +8,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.data.TemporaryNodeMergeStrategy;
 import net.luckperms.api.node.Node;
+import org.w3c.dom.CDATASection;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.database.CoreBoost;
 import space.cubicworld.core.database.CorePlayer;
@@ -32,14 +33,9 @@ public class BoostPremiumScheduler {
     }
 
     private void updateTime(UUID uuid) {
-        plugin.getCore()
-                .getDatabase()
-                .fetchPlayer(uuid)
-                .flatMap(player -> player.getBoosts()
-                        .stream()
-                        .max(Comparator.comparingLong(CoreBoost::getEnd))
-                )
-                .ifPresent(boost -> luckPerms.getUserManager()
+        plugin.getDatabase()
+                .fetchLastPlayerBoost(uuid)
+                .doOnNext(boost -> luckPerms.getUserManager()
                         .modifyUser(uuid, user -> user.data().add(
                                         Node.builder(plugin.getConfig().get("premium-permission"))
                                                 .value(true)
@@ -48,7 +44,8 @@ public class BoostPremiumScheduler {
                                         TemporaryNodeMergeStrategy.REPLACE_EXISTING_IF_DURATION_LONGER
                                 )
                         )
-                );
+                )
+                .subscribe();
     }
 
 }

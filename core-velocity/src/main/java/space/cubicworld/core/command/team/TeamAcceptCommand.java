@@ -37,28 +37,29 @@ public class TeamAcceptCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         }
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            if (team.getMaxMembers() < team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP)) {
-                                source.sendMessage(CoreMessage.playersLimitIncreased(team));
-                                return;
-                            }
-                            CorePTRelation relation = plugin.getDatabase()
-                                    .fetchPTRelation(player.getUniqueId(), team.getId())
-                                    .orElseThrow();
-                            if (!relation.getValue().isInvite()) {
-                                source.sendMessage(CoreMessage.notInvited(team));
-                                return;
-                            }
-                            relation.setValue(CorePTRelation.Value.MEMBERSHIP);
-                            plugin.getDatabase().update(relation);
-                            plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamInviteAcceptEvent(player, team)
-                            );
-                            source.sendMessage(CoreMessage.inviteAccepted(team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                .flatMap(team -> team.getMaxMembers().flatMap(maxMembers ->
+                        team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP).flatMap(members ->
+                                maxMembers < members ?
+                                        CoreMessage.playersLimitIncreased(team) :
+                                        plugin.getDatabase()
+                                                .fetchPTRelation(player.getUniqueId(), team.getId())
+                                                .flatMap(relation -> {
+                                                    if (!relation.getValue().isInvite()) {
+                                                        return CoreMessage.notInvited(team);
+                                                    }
+                                                    relation.setValue(CorePTRelation.Value.MEMBERSHIP);
+                                                    return plugin.getDatabase().update(relation)
+                                                            .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
+                                                                    new TeamInviteAcceptEvent(player, team)
+                                                            ))
+                                                            .then(CoreMessage.inviteAccepted(team));
+                                                })
+                        )
+                ))
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

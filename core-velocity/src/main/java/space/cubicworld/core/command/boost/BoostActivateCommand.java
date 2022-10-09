@@ -2,6 +2,7 @@ package space.cubicworld.core.command.boost;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -30,45 +31,47 @@ public class BoostActivateCommand extends AbstractCoreCommand<VelocityCoreComman
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CorePlayer corePlayer = plugin.getDatabase()
+        plugin.getDatabase()
                 .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
-        if (corePlayer.getInactiveBoosts() <= 0) {
-            source.sendMessage(CoreMessage.boostActivateNoBoosts());
-            return;
-        }
-        if (!args.hasNext()) {
-            source.sendMessage(CoreMessage.boostActivateConfirm("/boost activate confirm"));
-            return;
-        }
-        String next = args.next();
-        CoreBoost boost;
-        boolean extend;
-        if (next.equals("confirm")) {
-            boost = plugin.getDatabase().newBoost(corePlayer.getId());
-            extend = false;
-        }
-        else if (!args.hasNext() || !args.next().equals("confirm")) {
-            source.sendMessage(CoreMessage.boostActivateConfirm("/boost activate " + next + " confirm"));
-            return;
-        }
-        else {
-            long id = Long.parseLong(next);
-            boost = plugin.getDatabase().fetchBoost(id).orElseThrow();
-            if (!boost.getPlayerId().equals(player.getUniqueId())) {
-                source.sendMessage(CoreMessage.boostActivateOwningFalse());
-                return;
-            }
-            boost.extend();
-            plugin.getDatabase().update(boost);
-            extend = true;
-        }
-        corePlayer.decrementInactiveBoosts();
-        plugin.getDatabase().update(corePlayer);
-        plugin.getServer().getEventManager().fireAndForget(
-                new BoostActivateEvent(boost, extend)
-        );
-        source.sendMessage(CoreMessage.boostMenu(corePlayer, 0));
+                .flatMap(corePlayer -> {
+                    if (corePlayer.getInactiveBoosts() <= 0) {
+                        return Mono.just(CoreMessage.boostActivateNoBoosts());
+                    }
+                    if (!args.hasNext()) {
+                        return Mono.just(CoreMessage.boostActivateConfirm("/boost activate confirm"));
+                    }
+                    String next = args.next();
+                    Mono<? extends CoreBoost> boostMono;
+                    boolean extend;
+                    if (next.equals("confirm")) {
+                        boostMono = plugin.getDatabase().newBoost(corePlayer.getId());
+                        extend = false;
+                    } else if (!args.hasNext() || !args.next().equals("confirm")) {
+                        return Mono.just(CoreMessage.boostActivateConfirm("/boost activate " + next + " confirm"));
+                    } else {
+                        long id = Long.parseLong(next);
+                        boostMono = plugin.getDatabase().fetchBoost(id)
+                                .flatMap(boost -> {
+                                    if (!boost.getPlayerId().equals(player.getUniqueId())) {
+                                        source.sendMessage(CoreMessage.boostActivateOwningFalse());
+                                        return Mono.empty();
+                                    }
+                                    boost.extend();
+                                    return plugin.getDatabase().update(boost).thenReturn(boost);
+                                });
+                        extend = true;
+                    }
+                    corePlayer.setInactiveBoosts(corePlayer.getInactiveBoosts() - 1);
+                    return plugin.getDatabase().update(corePlayer)
+                            .then(boostMono)
+                            .doOnNext(boost -> plugin.getServer().getEventManager().fireAndForget(
+                                    new BoostActivateEvent(boost, extend)
+                            ))
+                            .flatMap(boost -> CoreMessage.boostMenu(corePlayer, 0));
+                })
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

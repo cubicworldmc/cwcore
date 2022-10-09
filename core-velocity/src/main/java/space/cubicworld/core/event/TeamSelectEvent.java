@@ -8,7 +8,7 @@ import space.cubicworld.core.database.CoreTeam;
 public class TeamSelectEvent {
 
     private final CorePlayer player;
-    private final CoreTeam previous;
+    private final Integer previous;
     private final CoreTeam current;
 
 }

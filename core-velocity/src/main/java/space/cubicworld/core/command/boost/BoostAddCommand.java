@@ -1,6 +1,7 @@
 package space.cubicworld.core.command.boost;
 
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -30,17 +31,18 @@ public class BoostAddCommand extends AbstractCoreCommand<VelocityCoreCommandSour
         }
         String playerName = args.next();
         plugin.getDatabase().fetchPlayer(playerName)
-                .ifPresentOrElse(
-                        player -> {
-                            player.incrementInactiveBoosts();
-                            plugin.getDatabase().update(player);
-                            plugin.getServer().getEventManager().fireAndForget(
+                .flatMap(player -> {
+                    player.setInactiveBoosts(player.getInactiveBoosts() + 1);
+                    return plugin.getDatabase().update(player)
+                            .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
                                     new BoostAddedEvent(player)
-                            );
-                            source.sendMessage(CoreMessage.addedOneBoost(player));
-                        },
-                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
-                );
+                            ))
+                            .then(CoreMessage.addedOneBoost(player));
+                }).map(it -> (Component) it)
+                .defaultIfEmpty(CoreMessage.playerNotExist(playerName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

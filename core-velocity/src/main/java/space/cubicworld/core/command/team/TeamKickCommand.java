@@ -2,6 +2,7 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -42,33 +43,30 @@ public class TeamKickCommand extends AbstractCoreCommand<VelocityCoreCommandSour
         plugin.getDatabase()
                 .fetchTeam(teamName)
                 .filter(team -> team.getOwnerId().equals(player.getUniqueId()))
-                .ifPresentOrElse(
-                        team -> plugin.getDatabase()
-                                .fetchPlayer(playerName)
-                                .ifPresentOrElse(
-                                        kickPlayer -> {
-                                            if (kickPlayer.getId().equals(player.getUniqueId())) {
-                                                source.sendMessage(CoreMessage.kickSelf());
-                                                return;
-                                            }
-                                            CorePTRelation relation = plugin.getDatabase()
-                                                    .fetchPTRelation(kickPlayer.getId(), team.getId())
-                                                    .orElseThrow();
+                .flatMap(team -> plugin.getDatabase()
+                        .fetchPlayer(playerName)
+                        .flatMap(kickPlayer -> kickPlayer.getId().equals(player.getUniqueId()) ?
+                                Mono.just(CoreMessage.kickSelf()) :
+                                plugin.getDatabase()
+                                        .fetchPTRelation(kickPlayer.getId(), team.getId())
+                                        .flatMap(relation -> {
                                             if (relation.getValue() == CorePTRelation.Value.NONE) {
-                                                source.sendMessage(CoreMessage.teamNotMember(kickPlayer, team));
-                                                return;
+                                                return CoreMessage.teamNotMember(kickPlayer, team);
                                             }
                                             relation.setValue(CorePTRelation.Value.NONE);
-                                            plugin.getDatabase().update(relation);
-                                            plugin.getServer().getEventManager().fireAndForget(
-                                                    new TeamKickEvent(kickPlayer, team)
-                                            );
-                                            source.sendMessage(CoreMessage.kickSuccess(kickPlayer, team));
-                                        },
-                                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
-                                ),
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                                            return plugin.getDatabase().update(relation)
+                                                    .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
+                                                            new TeamKickEvent(kickPlayer, team)
+                                                    ))
+                                                    .flatMap(it -> CoreMessage.kickSuccess(kickPlayer, team));
+                                        })
+                        )
+                        .defaultIfEmpty(CoreMessage.playerNotExist(playerName))
+                )
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

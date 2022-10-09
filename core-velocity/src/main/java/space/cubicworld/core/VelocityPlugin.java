@@ -97,7 +97,6 @@ public class VelocityPlugin {
                 config.get("mysql.password"),
                 config.get("mysql.database"),
                 getClass().getClassLoader(),
-                logger,
                 new VelocityCoreResolver(this),
                 colors
         );

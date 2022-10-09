@@ -2,6 +2,7 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -35,23 +36,24 @@ public class TeamSelectCommand extends AbstractCoreCommand<VelocityCoreCommandSo
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CorePlayer corePlayer = plugin.getDatabase()
-                .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
         plugin.getDatabase()
-                .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            CoreTeam previous = corePlayer.getSelectedTeam();
+                .fetchPlayer(player.getUniqueId())
+                .flatMap(corePlayer -> plugin.getDatabase()
+                        .fetchTeam(teamName)
+                        .flatMap(team -> {
+                            Integer previous = corePlayer.getSelectedTeamId();
                             corePlayer.setSelectedTeam(team);
-                            plugin.getDatabase().update(corePlayer);
-                            plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamSelectEvent(corePlayer, previous, team)
-                            );
-                            source.sendMessage(CoreMessage.selectTeamSuccess(team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                            return plugin.getDatabase().update(corePlayer)
+                                    .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
+                                            new TeamSelectEvent(corePlayer, previous, team)
+                                    ))
+                                    .then(CoreMessage.selectTeamSuccess(team));
+                        }).map(it -> (Component) it)
+                        .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                )
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

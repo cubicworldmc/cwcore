@@ -2,8 +2,9 @@ package space.cubicworld.core.database;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface CoreTeam {
@@ -20,8 +21,7 @@ public interface CoreTeam {
 
     void setDescription(@Nullable String description);
 
-    @NotNull
-    CorePlayer getOwner();
+    Mono<? extends CorePlayer> getOwner();
 
     @NotNull
     UUID getOwnerId();
@@ -36,23 +36,22 @@ public interface CoreTeam {
 
     void setVerified(boolean verified);
 
-    @NotNull
-    List<CorePlayer> getRelations(CorePTRelation.Value value, int count);
+    Flux<? extends CorePlayer> getRelations(CorePTRelation.Value value, long count);
 
-    default List<CorePlayer> getAllRelations(CorePTRelation.Value value) {
-        return getRelations(value, CoreRelationCache.ALL);
+    Flux<? extends CorePlayer> getRelations(CorePTRelation.Value value, long count, long skip);
+
+    default Flux<? extends CorePlayer> getAllRelations(CorePTRelation.Value value) {
+        return getRelations(value, -1);
     }
 
-    int getRelationsCount(CorePTRelation.Value value);
+    Mono<Long> getRelationsCount(CorePTRelation.Value value);
 
-    List<CoreBoost> getBoosts();
+    Flux<? extends CoreBoost> getBoosts();
 
-    default int getUpgradeLevel() {
-        return getBoosts().size();
-    }
+    Mono<Long> getUpgradeLevel();
 
-    int getMaxMembers();
+    Mono<Long> getMaxMembers();
 
-    int getReputation();
+    Mono<Long> getReputation();
 
 }

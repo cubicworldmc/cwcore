@@ -1,6 +1,7 @@
 package space.cubicworld.core.database;
 
 import org.jetbrains.annotations.NotNull;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -17,11 +18,9 @@ public interface CorePTRelation {
         }
     }
 
-    @NotNull
-    CorePlayer getPlayer();
+    Mono<? extends CorePlayer> getPlayer();
 
-    @NotNull
-    CoreTeam getTeam();
+    Mono<? extends CoreTeam> getTeam();
 
     @NotNull
     UUID getPlayerId();
