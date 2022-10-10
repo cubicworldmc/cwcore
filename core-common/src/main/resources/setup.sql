@@ -45,15 +45,4 @@ CREATE TABLE IF NOT EXISTS team_boosts (
     PRIMARY KEY(boost_id, team_id),
     FOREIGN KEY(boost_id) REFERENCES player_boosts(id) ON DELETE CASCADE,
     FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS private_messages(
-    id BIGINT AUTO_INCREMENT,
-    sender VARCHAR(36),
-    receiver VARCHAR(36),
-    message TEXT,
-    sent TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(id),
-    FOREIGN KEY(sender) REFERENCES players(uuid) ON DELETE CASCADE,
-    FOREIGN KEY(receiver) REFERENCES players(uuid) ON DELETE CASCADE
 )
