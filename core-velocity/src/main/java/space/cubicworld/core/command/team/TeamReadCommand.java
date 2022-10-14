@@ -2,6 +2,8 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -35,23 +37,24 @@ public class TeamReadCommand extends AbstractCoreCommand<VelocityCoreCommandSour
         }
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            CorePTRelation relation = plugin.getDatabase()
-                                    .fetchPTRelation(player.getUniqueId(), team.getId())
-                                    .orElseThrow();
+                .flatMap(team -> plugin.getDatabase()
+                        .fetchPTRelation(player.getUniqueId(), team.getId())
+                        .flatMap(relation -> {
                             if (!relation.getValue().isInvite()) {
-                                source.sendMessage(CoreMessage.notInvited(team));
-                                return;
+                                return CoreMessage.notInvited(team);
                             }
+                            Mono<? extends Component> readSuccess = CoreMessage.readSuccess(team);
                             if (relation.getValue() != CorePTRelation.Value.READ) {
                                 relation.setValue(CorePTRelation.Value.READ);
-                                plugin.getDatabase().update(relation);
+                                return plugin.getDatabase().update(relation).then(readSuccess);
                             }
-                            source.sendMessage(CoreMessage.readSuccess(team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                            return readSuccess;
+                        })
+                )
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

@@ -31,21 +31,21 @@ public class TeamVerifyCommand extends AbstractCoreCommand<VelocityCoreCommandSo
         String teamName = args.next();
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            if (team.isVerified()) {
-                                source.sendMessage(CoreMessage.teamAlreadyVerified(team));
-                                return;
-                            }
-                            team.setVerified(true);
-                            plugin.getDatabase().update(team);
-                            plugin.getServer().getEventManager().fireAndForget(
+                .flatMap(team -> {
+                    if (team.isVerified()) {
+                        return CoreMessage.teamAlreadyVerified(team);
+                    }
+                    team.setVerified(true);
+                    return plugin.getDatabase().update(team)
+                            .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
                                     new TeamVerifyEvent(source.getSource(), team)
-                            );
-                            source.sendMessage(CoreMessage.teamVerifiedSet(team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                            ))
+                            .then(CoreMessage.teamVerifiedSet(team));
+                })
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
 

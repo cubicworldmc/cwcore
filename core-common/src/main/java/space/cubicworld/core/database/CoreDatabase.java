@@ -1,56 +1,79 @@
 package space.cubicworld.core.database;
 
-import java.sql.Connection;
-import java.util.List;
-import java.util.Optional;
+import io.r2dbc.spi.Connection;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.util.UUID;
 
 public interface CoreDatabase {
 
-    Connection getConnection();
+    Mono<? extends Connection> getConnection();
 
-    Optional<CorePlayer> fetchPlayer(UUID id);
+    Mono<? extends CorePlayer> fetchPlayer(UUID id);
 
-    Optional<CorePlayer> fetchPlayer(String name);
+    Mono<? extends CorePlayer> fetchPlayer(String name);
 
-    List<CorePlayer> fetchPlayers(String sql, Object... objects);
+    Mono<? extends CoreTeam> fetchTeam(int id);
 
-    Optional<CoreTeam> fetchTeam(int id);
+    Mono<? extends CoreTeam> fetchTeam(String name);
 
-    Optional<CoreTeam> fetchTeam(String name);
+    Flux<? extends CoreTeam> fetchTeamsByVerified(boolean verified, long count, long skip);
 
-    List<CoreTeam> fetchTeams(String sql, Object... objects);
+    Mono<Long> fetchTeamsCountByVerified(boolean verified);
 
-    Optional<CorePTRelation> fetchPTRelation(UUID player, int team);
+    Mono<? extends CorePTRelation> fetchPTRelation(UUID player, int team);
 
-    Optional<CoreBoost> fetchBoost(long id);
+    Mono<? extends CoreBoost> fetchBoost(long id);
 
-    List<CoreBoost> fetchPlayerBoosts(UUID player);
+    Mono<Long> fetchTeamReputation(int id);
 
-    List<CoreBoost> fetchTeamBoosts(int team);
+    Mono<Long> fetchTeamPTRelationsCount(int team, CorePTRelation.Value value);
 
-    List<CoreTeam> fetchTeamReputationTop();
+    Mono<Long> fetchPlayerPTRelationsCount(UUID player, CorePTRelation.Value value);
 
-    List<CorePlayer> fetchPlayerReputationTop();
+    Flux<? extends CorePlayer> fetchTeamPTRelations(int team, CorePTRelation.Value value, long count);
 
-    CoreTeam newTeam(String name, UUID owner);
+    Flux<? extends CorePlayer> fetchTeamPTRelations(int team, CorePTRelation.Value value, long count, long skip);
 
-    CorePlayer newPlayer(UUID id, String name);
+    Flux<? extends CoreTeam> fetchPlayerPTRelations(UUID player, CorePTRelation.Value value, long count);
 
-    CoreBoost newBoost(UUID player);
+    Flux<? extends CoreTeam> fetchPlayerPTRelations(UUID player, CorePTRelation.Value value, long count, long skip);
 
-    void update(CorePlayer player);
+    Flux<? extends CoreBoost> fetchPlayerBoosts(UUID player, long count, long skip);
 
-    void update(CoreTeam team);
+    Mono<? extends CoreBoost> fetchLastPlayerBoost(UUID player);
 
-    void update(CorePTRelation relation);
+    Mono<? extends CoreTeam> fetchPlayerNotVerifiedOwnedTeam(UUID player);
 
-    void update(CoreBoost boost);
+    Mono<Long> fetchPlayerBoostsCount(UUID player);
 
-    void remove(CorePlayer player);
+    Flux<? extends CoreBoost> fetchTeamBoosts(int team);
 
-    void remove(CoreTeam team);
+    Mono<Long> fetchTeamBoostsCount(int team);
 
-    void remove(CoreBoost boost);
+    Flux<? extends CoreTeam> fetchTeamReputationTop(int page);
+
+    Flux<? extends CorePlayer> fetchPlayerReputationTop(int page);
+
+    Mono<? extends CoreTeam> newTeam(String name, UUID owner);
+
+    Mono<? extends CorePlayer> newPlayer(UUID id, String name);
+
+    Mono<? extends CoreBoost> newBoost(UUID player);
+
+    Mono<Void> update(CorePlayer player);
+
+    Mono<Void> update(CoreTeam team);
+
+    Mono<Void> update(CorePTRelation relation);
+
+    Mono<Void> update(CoreBoost boost);
+
+    Mono<Void> remove(CorePlayer player);
+
+    Mono<Void> remove(CoreTeam team);
+
+    Mono<Void> remove(CoreBoost boost);
 
 }

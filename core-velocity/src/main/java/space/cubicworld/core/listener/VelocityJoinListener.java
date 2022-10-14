@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 
 @RequiredArgsConstructor
@@ -16,18 +17,20 @@ public class VelocityJoinListener {
         Player player = event.getPlayer();
         plugin.getDatabase()
                 .fetchPlayer(player.getUniqueId())
-                .ifPresentOrElse(
-                        corePlayer -> {
-                            if (!corePlayer.getName().equalsIgnoreCase(player.getUsername())) {
-                                corePlayer.setName(player.getUsername());
-                                plugin.getDatabase().update(corePlayer);
-                            }
-                        },
-                        () -> plugin.getDatabase().newPlayer(
+                .switchIfEmpty(
+                        plugin.getDatabase().newPlayer(
                                 player.getUniqueId(),
                                 player.getUsername()
-                        )
-                );
+                        ).then(Mono.empty())
+                )
+                .flatMap(corePlayer -> {
+                    if (!corePlayer.getName().equalsIgnoreCase(player.getUsername())) {
+                        corePlayer.setName(player.getUsername());
+                        return plugin.getDatabase().update(corePlayer);
+                    }
+                    return Mono.empty();
+                })
+                .subscribe();
     }
 
 }

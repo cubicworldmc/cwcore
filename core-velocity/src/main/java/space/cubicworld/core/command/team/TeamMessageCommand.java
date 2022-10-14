@@ -41,11 +41,12 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
         plugin
                 .getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> {
-                            CorePlayer corePlayer = plugin.getDatabase()
-                                    .fetchPlayer(player.getUniqueId())
-                                    .orElseThrow();
+                .doOnSuccess(team -> {
+                    if (team == null) source.sendMessage(CoreMessage.teamNotExist(teamName));
+                })
+                .flatMap(team -> plugin.getDatabase()
+                        .fetchPlayer(player.getUniqueId())
+                        .doOnNext(corePlayer -> {
                             String message = MessageUtils.buildMessage(args);
                             if (message == null) {
                                 source.sendMessage(CoreMessage.teamMessageEmpty());
@@ -54,9 +55,10 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
                             plugin.getServer().getEventManager().fireAndForget(
                                     new TeamMessageEvent(corePlayer, team, message)
                             );
-                        },
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                        })
+                )
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

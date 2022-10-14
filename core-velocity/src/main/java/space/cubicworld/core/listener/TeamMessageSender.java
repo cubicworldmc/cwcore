@@ -15,18 +15,19 @@ public class TeamMessageSender {
 
     @Subscribe
     public void teamMessage(TeamMessageEvent event) {
-        Component message = CoreMessage.teamMessage(
-                event.getTeam(),
-                event.getSender(),
-                event.getMessage()
-        );
-        event.getTeam()
-                .getAllRelations(CorePTRelation.Value.MEMBERSHIP)
-                .forEach(corePlayer -> plugin.getServer()
-                        .getPlayer(corePlayer.getId())
-                        .filter(plugin::isRealJoined)
-                        .ifPresent(player -> player.sendMessage(message))
-                );
+        CoreMessage.teamMessage(
+                        event.getTeam(),
+                        event.getSender(),
+                        event.getMessage()
+                ).flatMapMany(message -> event.getTeam()
+                        .getAllRelations(CorePTRelation.Value.MEMBERSHIP)
+                        .doOnNext(corePlayer -> plugin.getServer()
+                                .getPlayer(corePlayer.getId())
+                                .filter(plugin::isRealJoined)
+                                .ifPresent(player -> player.sendMessage(message))
+                        )
+                )
+                .subscribe();
     }
 
 }

@@ -13,6 +13,9 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.slf4j.Logger;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import space.cubicworld.core.CoreStatic;
 import space.cubicworld.core.color.ColorRule;
 import space.cubicworld.core.database.*;
 import space.cubicworld.core.json.CoreLightPlayer;
@@ -83,7 +86,7 @@ public class CoreMessage {
                 .append(text("]").color(INFORMATION_COLOR));
     }
 
-    public Component simpleLimitedList(List<Component> components, int baseCount, int limit) {
+    public Component simpleLimitedList(List<? extends Component> components, long baseCount, long limit) {
         Component result = join(JoinConfiguration.commas(true), components);
         return baseCount > limit ?
                 result.append(text("...").color(INFORMATION_COLOR)) : result;
@@ -138,27 +141,32 @@ public class CoreMessage {
                 .color(orDefault(player.getResolvedGlobalColor(), defaultColor));
     }
 
-    public Component playerReputation(CorePlayer player) {
-        return translatable("cwcore.reputation.see")
-                .args(
-                        playerMention(player),
-                        text(Integer.toString(player.getReputation())).color(MENTION_COLOR)
-                )
-                .color(INFORMATION_COLOR);
+    public Mono<? extends Component> playerReputation(CorePlayer player) {
+        return player.asLight()
+                .map(lightPlayer -> translatable("cwcore.reputation.see")
+                        .args(
+                                playerMention(lightPlayer),
+                                text(Integer.toString(player.getReputation())).color(MENTION_COLOR)
+                        )
+                        .color(INFORMATION_COLOR)
+                );
     }
 
-    public Component teamMention(CoreTeam team) {
-        return text(team.getName())
-                .hoverEvent(HoverEvent.showText(empty()
-                        .append(team.getDescription() == null ?
-                                empty() :
-                                text(team.getDescription()).append(newline())
-                        )
-                        .append(translatable("cwcore.team.about.owner")
-                                .args(playerMention(team.getOwner()))
-                        )
-                ))
-                .color(MENTION_COLOR);
+    public Mono<? extends Component> teamMention(CoreTeam team) {
+        return team.getOwner()
+                .flatMap(CorePlayer::asLight)
+                .map(lightPlayer -> text(team.getName())
+                        .hoverEvent(HoverEvent.showText(empty()
+                                .append(team.getDescription() == null ?
+                                        empty() :
+                                        text(team.getDescription()).append(newline())
+                                )
+                                .append(translatable("cwcore.team.about.owner")
+                                        .args(playerMention(lightPlayer))
+                                )
+                        ))
+                        .color(MENTION_COLOR)
+                );
     }
 
     public Component teamAlreadyExist(String teamName) {
@@ -167,112 +175,145 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component alreadyInTeam(CorePlayer player, CoreTeam team) {
-        return translatable("cwcore.team.already.in")
-                .args(playerMention(player), teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> alreadyInTeam(CorePlayer player, CoreTeam team) {
+        return player.asLight()
+                .flatMap(lightPlayer -> teamMention(team)
+                        .map(teamMentionComponent -> translatable("cwcore.team.already.in")
+                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .color(FAIL_COLOR)
+                        )
+                );
     }
 
-    public Component teamCreated(CoreTeam team) {
-        return translatable("cwcore.team.created")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamCreated(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.created")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
-    public Component teamInvitedAlready(CorePlayer invited, CoreTeam team) {
-        return translatable("cwcore.team.already.invited")
-                .args(playerMention(invited), teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> teamInvitedAlready(CorePlayer invited, CoreTeam team) {
+        return invited.asLight()
+                .flatMap(lightInvited -> teamMention(team)
+                        .map(teamMentionComponent -> translatable("cwcore.team.already.invited")
+                                .args(playerMention(lightInvited), teamMentionComponent)
+                                .color(FAIL_COLOR)
+                        )
+                );
     }
 
-    public Component teamInvitationSend(CorePlayer invited, CoreTeam team) {
-        return translatable("cwcore.team.invited")
-                .args(playerMention(invited), teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamInvitationSend(CorePlayer invited, CoreTeam team) {
+        return invited.asLight()
+                .flatMap(lightInvited -> teamMention(team)
+                        .map(teamMentionComponent -> translatable("cwcore.team.invited")
+                                .args(playerMention(lightInvited), teamMentionComponent)
+                                .color(SUCCESS_COLOR)
+                        )
+                );
     }
 
-    public Component teamInvite(CorePlayer inviter, CoreTeam team) {
-        return empty()
-                .append(translatable("cwcore.team.invite")
-                        .args(playerMention(inviter), teamMention(team))
-                        .color(INFORMATION_COLOR)
-                )
-                .append(space())
-                .append(clickable(translatable("cwcore.join")
-                        .clickEvent(ClickEvent.runCommand("/team join " + team.getName()))
-                ));
+    public Mono<? extends Component> teamInvite(CorePlayer inviter, CoreTeam team) {
+        return inviter.asLight()
+                .flatMap(lightInviter -> teamMention(team)
+                        .map(teamMentionComponent -> empty()
+                                .append(translatable("cwcore.team.invite")
+                                        .args(playerMention(lightInviter), teamMentionComponent)
+                                        .color(INFORMATION_COLOR)
+                                )
+                                .append(space())
+                                .append(clickable(translatable("cwcore.join")
+                                                .clickEvent(ClickEvent.runCommand("/team join " + team.getName()))
+                                        )
+                                )
+                        )
+                );
     }
 
-    public Component notInvited(CoreTeam team) {
-        return translatable("cwcore.team.invited.not")
-                .args(teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> notInvited(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.invited.not")
+                        .args(teamMentionComponent)
+                        .color(FAIL_COLOR)
+                );
     }
 
-    public Component inviteAccepted(CoreTeam team) {
-        return translatable("cwcore.team.invite.accept")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> inviteAccepted(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.invite.accept")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
-    public Component oneTeamNotVerified(CoreTeam team) {
-        return translatable("cwcore.team.verified.not")
-                .args(teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> oneTeamNotVerified(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.verified.not")
+                        .args(teamMentionComponent)
+                        .color(FAIL_COLOR)
+                );
     }
 
-    public Component teamAlreadyVerified(CoreTeam team) {
-        return translatable("cwcore.team.verified.already")
-                .args(teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> teamAlreadyVerified(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.verified.already")
+                        .args(teamMentionComponent)
+                        .color(FAIL_COLOR)
+                );
     }
 
-    public Component teamVerifiedSet(CoreTeam team) {
-        return translatable("cwcore.team.verified.set")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamVerifiedSet(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.verified.set")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     @SneakyThrows
-    public Component teamAbout(CoreTeam team, boolean forMember) {
-        Component membersMessage;
-        if (forMember || !team.isHide()) {
-            List<CorePlayer> members = team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
-            membersMessage = simpleLimitedList(
-                    members.stream()
-                            .limit(10)
-                            .map(CoreMessage::playerMention)
-                            .toList(),
-                    members.size(),
-                    10
-            );
-
-        } else {
-            membersMessage = translatable("cwcore.team.about.hide");
-        }
-        return empty()
-                .append(translatable("cwcore.team.about.name")
-                        .args(teamMention(team).append(
-                                team.isVerified() ? text(" ✔") : empty()
-                        ))
+    public Mono<? extends Component> teamAbout(CoreTeam team, boolean forMember) {
+        return teamMention(team)
+                .map(teamMentionComponent -> empty()
+                        .append(translatable("cwcore.team.about.name")
+                                .args(teamMentionComponent.append(
+                                        team.isVerified() ? text(" ✔") : empty()
+                                ))
+                        )
+                        .append(newline())
+                        .append(team.getDescription() == null ?
+                                empty() :
+                                translatable("cwcore.team.about.description")
+                                        .args(text(team.getDescription()))
+                                        .append(newline())
+                        )
                 )
-                .append(Component.newline())
-                .append(team.getDescription() == null ?
-                        empty() :
-                        translatable("cwcore.team.about.description")
-                                .args(text(team.getDescription()))
+                .flatMap(result -> team.getOwner()
+                        .flatMap(CorePlayer::asLight)
+                        .map(lightOwner -> result
+                                .append(translatable("cwcore.team.about.owner")
+                                        .args(playerMention(lightOwner))
+                                )
                                 .append(newline())
+                        )
                 )
-                .append(translatable("cwcore.team.about.owner")
-                        .args(playerMention(team.getOwner()))
-                )
-                .append(newline())
-                .append(translatable("cwcore.team.about.members")
-                        .args(
-                                membersMessage,
-                                text(team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP))
-                                        .color(MENTION_COLOR),
-                                text(team.getMaxMembers()).color(MENTION_COLOR)
+                .flatMap(result -> (forMember || !team.isHide() ?
+                                team.getRelations(CorePTRelation.Value.MEMBERSHIP, 11)
+                                        .flatMap(CorePlayer::asLight)
+                                        .map(CoreMessage::playerMention)
+                                        .collectList()
+                                        .map(list -> simpleLimitedList(list.stream().limit(10).toList(), list.size(), 10)) :
+                                Mono.just(translatable("cwcore.team.about.hide"))
+                        ).flatMap(membersMessage -> team.getRelationsCount(CorePTRelation.Value.MEMBERSHIP)
+                                .flatMap(membersCount -> team.getMaxMembers()
+                                        .map(maxMembers -> result.append(
+                                                translatable("cwcore.team.about.members")
+                                                        .args(
+                                                                membersMessage,
+                                                                text(membersCount).color(MENTION_COLOR),
+                                                                text(maxMembers).color(MENTION_COLOR)
+                                                        )
+                                        ))
+                                )
                         )
                 );
     }
@@ -283,10 +324,12 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component teamLeaved(CoreTeam team) {
-        return translatable("cwcore.team.leave")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamLeaved(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.leave")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     public Component teamDeleteCanNot(String teamName) {
@@ -295,28 +338,32 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component teamDeleteConfirm(CoreTeam team) {
-        return empty()
-                .append(translatable("cwcore.team.delete.confirm")
-                        .args(teamMention(team))
-                        .color(INFORMATION_COLOR)
-                )
-                .append(space())
-                .append(confirm()
-                        .clickEvent(ClickEvent
-                                .runCommand("/team delete %s confirm".formatted(team.getName()))
+    public Mono<? extends Component> teamDeleteConfirm(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> empty()
+                        .append(translatable("cwcore.team.delete.confirm")
+                                .args(teamMentionComponent)
+                                .color(INFORMATION_COLOR)
                         )
-                )
-                .decorate(TextDecoration.BOLD);
+                        .append(space())
+                        .append(confirm()
+                                .clickEvent(ClickEvent
+                                        .runCommand("/team delete %s confirm".formatted(team.getName()))
+                                )
+                        )
+                        .decorate(TextDecoration.BOLD)
+                );
     }
 
-    public Component teamDeleted(CoreTeam team) {
-        return translatable("cwcore.team.delete")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamDeleted(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.delete")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
-    public Component teamInviteJoinNotification(int count) {
+    public Component teamInviteJoinNotification(long count) {
         return translatable("cwcore.team.invite.join.notification")
                 .args(
                         text(count).color(MENTION_COLOR),
@@ -326,69 +373,77 @@ public class CoreMessage {
                 .color(INFORMATION_COLOR);
     }
 
-    public Component teamInvitesPage(CorePlayer player, int page) {
+    public Mono<? extends Component> teamInvitesPage(CorePlayer player, int page) {
         if (page < -1) throw new IllegalArgumentException("Page is negative");
-        int invites = player.getRelationsCount(CorePTRelation.Value.INVITE);
-        int totalPages = invites / 5 + (invites % 5 == 0 ? 0 : 1);
-        boolean previous = page != 0;
-        boolean next = page + 1 != totalPages;
-        List<Component> teams = player
-                .getAllRelations(CorePTRelation.Value.INVITE)
-                .stream()
-                .skip(page * 5L)
-                .map(team ->
-                        listElement(
-                                empty()
-                                        .append(teamMention(team))
-                                        .append(space())
-                                        .append(clickable(
-                                                translatable("cwcore.team.invites.accept")
-                                                        .clickEvent(ClickEvent.runCommand("/team accept " + team.getName()))
-                                        ))
-                                        .append(space())
-                                        .append(clickable(
-                                                translatable("cwcore.team.invites.read")
-                                                        .clickEvent(ClickEvent.runCommand("/team read " + team.getName()))
-                                        ))
-                        ).append(newline())
+        return player.getRelations(CorePTRelation.Value.INVITE, CoreStatic.INVITES_PAGE_SIZE, page * CoreStatic.INVITES_PAGE_SIZE)
+                .flatMap(team -> teamMention(team)
+                        .map(teamMentionComponent -> listElement(
+                                        empty()
+                                                .append(teamMentionComponent)
+                                                .append(space())
+                                                .append(clickable(
+                                                        translatable("cwcore.team.invites.accept")
+                                                                .clickEvent(ClickEvent.runCommand("/team accept " + team.getName()))
+                                                ))
+                                                .append(space())
+                                                .append(clickable(
+                                                        translatable("cwcore.team.invites.read")
+                                                                .clickEvent(ClickEvent.runCommand("/team read " + team.getName()))
+                                                ))
+                                ).append(newline())
+                        )
                 )
-                .toList();
-        return teams.isEmpty() ?
-                translatable("cwcore.team.invites.nothing").color(FAIL_COLOR) :
-                empty()
-                        .append(
-                                translatable("cwcore.team.invites.header")
-                                        .args(
-                                                text(page + 1).color(MENTION_COLOR),
-                                                text(totalPages).color(MENTION_COLOR)
-                                        )
-                                        .color(INFORMATION_COLOR)
-                        )
-                        .append(newline())
-                        .append(join(JoinConfiguration.noSeparators(), teams))
-                        .append(
-                                clickable(translatable("cwcore.previous")
-                                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                                ).clickEvent(previous ? ClickEvent.runCommand("/team invites " + page) : null)
-                        )
-                        .append(space())
-                        .append(
-                                clickable(translatable("cwcore.next")
-                                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                                ).clickEvent(next ? ClickEvent.runCommand("/team invites " + (page + 2)) : null)
-                        );
+                .collectList()
+                .flatMap(teams -> teams.isEmpty() ?
+                        Mono.just(translatable("cwcore.team.invites.nothing").color(FAIL_COLOR)) :
+                        player.getRelationsCount(CorePTRelation.Value.INVITE).map(invites -> {
+                            long totalPages = invites / CoreStatic.INVITES_PAGE_SIZE + (invites % CoreStatic.INVITES_PAGE_SIZE == 0 ? 0 : 1);
+                            boolean previous = page != 0;
+                            boolean next = page + 1 != totalPages;
+                            return empty()
+                                    .append(
+                                            translatable("cwcore.team.invites.header")
+                                                    .args(
+                                                            text(page + 1).color(MENTION_COLOR),
+                                                            text(totalPages).color(MENTION_COLOR)
+                                                    )
+                                                    .color(INFORMATION_COLOR)
+                                    )
+                                    .append(newline())
+                                    .append(join(JoinConfiguration.noSeparators(), teams))
+                                    .append(
+                                            clickable(translatable("cwcore.previous")
+                                                    .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                            ).clickEvent(previous ? ClickEvent.runCommand("/team invites " + page) : null)
+                                    )
+                                    .append(space())
+                                    .append(
+                                            clickable(translatable("cwcore.next")
+                                                    .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                            ).clickEvent(next ? ClickEvent.runCommand("/team invites " + (page + 2)) : null)
+                                    );
+                        })
+                );
     }
 
-    public Component teamNotMember(CorePlayer player, CoreTeam team) {
-        return translatable("cwcore.team.member.not")
-                .args(playerMention(player), teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> teamNotMember(CorePlayer player, CoreTeam team) {
+        return player.asLight()
+                .flatMap(lightPlayer -> teamMention(team)
+                        .map(teamMentionComponent -> translatable("cwcore.team.member.not")
+                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .color(FAIL_COLOR)
+                        )
+                );
     }
 
-    public Component kickSuccess(CorePlayer player, CoreTeam team) {
-        return translatable("cwcore.team.kick.success")
-                .args(playerMention(player), teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> kickSuccess(CorePlayer player, CoreTeam team) {
+        return player.asLight()
+                .flatMap(lightPlayer -> teamMention(team)
+                        .map(teamMentionComponent -> translatable("cwcore.team.kick.success")
+                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .color(SUCCESS_COLOR)
+                        )
+                );
     }
 
     public Component kickSelf() {
@@ -410,13 +465,17 @@ public class CoreMessage {
                 .append(message);
     }
 
-    public Component teamMessage(CoreTeam team, CorePlayer sender, String message) {
-        return empty()
-                .append(teamMention(team)
-                        .append(text(":"))
-                        .append(space())
-                )
-                .append(message(sender, text(message)));
+    public Mono<? extends Component> teamMessage(CoreTeam team, CorePlayer sender, String message) {
+        return sender.asLight()
+                .flatMap(lightSender -> teamMention(team)
+                        .map(teamMentionComponent -> empty()
+                                .append(teamMentionComponent
+                                        .append(text(":"))
+                                        .append(space())
+                                )
+                                .append(message(lightSender, text(message)))
+                        )
+                );
     }
 
     public Component teamProvideSettingsValueType() {
@@ -438,10 +497,12 @@ public class CoreMessage {
                 );
     }
 
-    public Component teamSettingsHideUpdated(CoreTeam team, boolean value) {
-        return translatable("cwcore.team.settings.value.hide.success." + value)
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamSettingsHideUpdated(CoreTeam team, boolean value) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.settings.value.hide.success." + value)
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     public Component teamSettingsDescriptionBad(int maxLength) {
@@ -449,10 +510,12 @@ public class CoreMessage {
                 .args(text(maxLength).color(MENTION_COLOR));
     }
 
-    public Component teamSettingsDescriptionUpdated(CoreTeam team) {
-        return translatable("cwcore.team.settings.value.description.success")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> teamSettingsDescriptionUpdated(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.settings.value.description.success")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     public Component colorInfo(
@@ -507,148 +570,167 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component readSuccess(CoreTeam team) {
-        return translatable("cwcore.team.read.success")
-                .args(teamMention(team));
+    public Mono<? extends Component> readSuccess(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.read.success")
+                        .args(teamMentionComponent)
+                );
     }
 
-    public Component verifies(CoreDatabase database, int page, List<Integer> notVerified) {
+    public Mono<? extends Component> verifies(CoreDatabase database, int page) {
         if (page < 0) throw new IllegalArgumentException("page is negative");
-        int totalPages = notVerified.size() / 5 + (notVerified.size() % 5 == 0 ? 0 : 1);
-        if (totalPages == 0) return translatable("cwcore.team.verifies.nothing")
-                .color(FAIL_COLOR);
-        boolean previous = page != 0;
-        boolean next = totalPages != page + 1;
-        List<Component> teams = notVerified
-                .stream()
-                .skip(page * 5)
-                .map(id -> database.fetchTeam(id).orElseThrow())
-                .map(team -> listElement(teamMention(team)
+        return database.fetchTeamsCountByVerified(false)
+                .flatMap(notVerifiedTeamsCount -> {
+                    long totalPages = notVerifiedTeamsCount / 5 + (notVerifiedTeamsCount % 5 == 0 ? 0 : 1);
+                    if (totalPages == 0)
+                        return Mono.just(translatable("cwcore.team.verifies.nothing").color(FAIL_COLOR));
+                    boolean previous = page != 0;
+                    boolean next = totalPages != page + 1;
+                    return database.fetchTeamsByVerified(
+                                    false,
+                                    CoreStatic.VERIFIES_PAGE_SIZE,
+                                    CoreStatic.VERIFIES_PAGE_SIZE * page
+                            )
+                            .flatMap(team -> teamMention(team)
+                                    .map(teamMentionComponent -> listElement(teamMentionComponent)
+                                            .append(space())
+                                            .append(clickable(translatable("cwcore.team.verifies.verify")
+                                                    .clickEvent(ClickEvent.runCommand("/team verify " + team.getName()))
+                                            ))
+                                    )
+                            )
+                            .collectList()
+                            .map(teams -> empty()
+                                    .append(translatable("cwcore.team.verifies.header")
+                                            .args(
+                                                    text(page + 1).color(MENTION_COLOR),
+                                                    text(totalPages).color(MENTION_COLOR)
+                                            )
+                                    )
+                                    .append(newline())
+                                    .append(join(JoinConfiguration.newlines(), teams))
+                                    .append(newline())
+                                    .append(clickable(translatable("cwcore.previous")
+                                            .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                            .clickEvent(previous ? ClickEvent.runCommand("/team verifies " + (page)) : null)
+                                    ))
+                                    .append(space())
+                                    .append(clickable(translatable("cwcore.next")
+                                            .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                            .clickEvent(next ? ClickEvent.runCommand("/team verifies " + (page + 2)) : null)
+                                    ))
+                            );
+                });
+    }
+
+    public Mono<? extends Component> playersLimitIncreased(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.invite.accept.limit.increased")
+                        .args(teamMentionComponent)
+                        .color(FAIL_COLOR)
+                );
+    }
+
+    public Mono<? extends Component> boostAbout(CoreBoost boost) {
+        return boost.getTeam()
+                .flatMap(CoreMessage::teamMention)
+                .map(component -> (Component) component)
+                .defaultIfEmpty(translatable("cwcore.none").color(MENTION_COLOR))
+                .map(teamComponent -> empty()
+                        .append(translatable("cwcore.boost.info.boost")
+                                .args(text(boost.getId()).color(MENTION_COLOR))
+                                .color(INFORMATION_COLOR)
+                        )
                         .append(space())
-                        .append(clickable(translatable("cwcore.team.verifies.verify")
-                                .clickEvent(ClickEvent.runCommand("/team verify " + team.getName()))
+                        .append(clickable(translatable("cwcore.boost.info.extend")
+                                .clickEvent(ClickEvent.runCommand("/boost activate " + boost.getId()))
                         ))
-                ))
-                .toList();
-        return empty()
-                .append(translatable("cwcore.team.verifies.header")
-                        .args(
-                                text(page + 1).color(MENTION_COLOR),
-                                text(totalPages).color(MENTION_COLOR)
+                        .append(newline())
+                        .append(translatable("cwcore.boost.info.boost.before")
+                                .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
+                                .color(INFORMATION_COLOR)
                         )
-                )
-                .append(newline())
-                .append(join(JoinConfiguration.newlines(), teams))
-                .append(newline())
-                .append(clickable(translatable("cwcore.previous")
-                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                        .clickEvent(previous ? ClickEvent.runCommand("/team verifies " + (page)) : null)
-                ))
-                .append(space())
-                .append(clickable(translatable("cwcore.next")
-                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                        .clickEvent(next ? ClickEvent.runCommand("/team verifies " + (page + 2)) : null)
-                ));
-    }
-
-    public Component playersLimitIncreased(CoreTeam team) {
-        return translatable("cwcore.team.invite.accept.limit.increased")
-                .args(teamMention(team))
-                .color(FAIL_COLOR);
-    }
-
-    public Component boostAbout(CoreBoost boost) {
-        return empty()
-                .append(translatable("cwcore.boost.info.boost")
-                        .args(text(boost.getId()).color(MENTION_COLOR))
-                        .color(INFORMATION_COLOR)
-                )
-                .append(space())
-                .append(clickable(translatable("cwcore.boost.info.extend")
-                        .clickEvent(ClickEvent.runCommand("/boost activate " + boost.getId()))
-                ))
-                .append(newline())
-                .append(translatable("cwcore.boost.info.boost.before")
-                        .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
-                        .color(INFORMATION_COLOR)
-                )
-                .append(newline())
-                .append(translatable("cwcore.boost.info.boost.target")
-                        .args(Optional.ofNullable(boost.getTeam())
-                                .map(CoreMessage::teamMention)
-                                .orElseGet(() -> translatable("cwcore.none")
-                                        .color(MENTION_COLOR)
+                        .append(newline())
+                        .append(translatable("cwcore.boost.info.boost.target")
+                                .args(teamComponent)
+                                .color(INFORMATION_COLOR)
+                        )
+                        .append(newline())
+                        .append(translatable("cwcore.boost.info.use")
+                                .args(empty()
+                                        .append(clickable(translatable("cwcore.boost.info.use.team")
+                                                .clickEvent(ClickEvent.suggestCommand("/boost use %s team ".formatted(boost.getId())))
+                                        ))
+                                        .append(space())
+                                        .append(clickable(translatable("cwcore.boost.info.use.clear")
+                                                .clickEvent(ClickEvent.runCommand("/boost use %s clear".formatted(boost.getId())))
+                                        ))
                                 )
-                        )
-                        .color(INFORMATION_COLOR)
-                )
-                .append(newline())
-                .append(translatable("cwcore.boost.info.use")
-                        .args(empty()
-                                .append(clickable(translatable("cwcore.boost.info.use.team")
-                                        .clickEvent(ClickEvent.suggestCommand("/boost use %s team ".formatted(boost.getId())))
-                                ))
-                                .append(space())
-                                .append(clickable(translatable("cwcore.boost.info.use.clear")
-                                        .clickEvent(ClickEvent.runCommand("/boost use %s clear".formatted(boost.getId())))
-                                ))
                         )
                 );
     }
 
-    public Component boostMenu(CorePlayer player, int page) {
+    public Mono<? extends Component> boostMenu(CorePlayer player, int page) {
         if (page < 0) throw new IllegalArgumentException("page is negative");
-        List<CoreBoost> boosts = player.getBoosts();
-        int totalPages = boosts.size() / 5 + (boosts.size() % 5 == 0 ? 0 : 1);
-        boolean next = page + 1 < totalPages;
-        boolean previous = page != 0;
-        return empty()
-                .append(translatable("cwcore.boost.info.header")
-                        .args(
-                                playerMention(player),
-                                text(page + 1).color(MENTION_COLOR),
-                                text(totalPages).color(MENTION_COLOR)
+        return player.getBoostsCount()
+                .flatMap(boostsCount -> player.asLight()
+                        .flatMap(lightPlayer -> player
+                                .getBoosts(CoreStatic.BOOSTS_PAGE_SIZE, CoreStatic.BOOSTS_PAGE_SIZE * page)
+                                .flatMap(CoreMessage::boostAbout)
+                                .collectList()
+                                .map(boosts -> {
+                                    long totalPages = boostsCount / CoreStatic.BOOSTS_PAGE_SIZE +
+                                            (boostsCount % CoreStatic.BOOSTS_PAGE_SIZE == 0 ? 0 : 1);
+                                    boolean next = page + 1 < totalPages;
+                                    boolean previous = page != 0;
+                                    return empty()
+                                            .append(translatable("cwcore.boost.info.header")
+                                                    .args(
+                                                            playerMention(lightPlayer),
+                                                            text(page + 1).color(MENTION_COLOR),
+                                                            text(totalPages).color(MENTION_COLOR)
+                                                    )
+                                                    .color(INFORMATION_COLOR)
+                                            )
+                                            .append(newline())
+                                            .append(translatable("cwcore.boost.info.inactive")
+                                                    .args(text(player.getInactiveBoosts())
+                                                            .color(MENTION_COLOR)
+                                                    )
+                                                    .color(INFORMATION_COLOR)
+                                            )
+                                            .append(space())
+                                            .append(clickable(translatable("cwcore.boost.info.activate")
+                                                    .clickEvent(ClickEvent.runCommand("/boost activate"))
+                                            ))
+                                            .append(newline())
+                                            .append(join(
+                                                    JoinConfiguration.newlines(),
+                                                    boosts
+                                            ))
+                                            .append(newline())
+                                            .append(clickable(translatable("cwcore.previous")
+                                                    .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                                    .clickEvent(previous ?
+                                                            ClickEvent.runCommand("/boost info " + (page)) : null)
+                                            ))
+                                            .append(space())
+                                            .append(clickable(translatable("cwcore.next")
+                                                    .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
+                                                    .clickEvent(next ?
+                                                            ClickEvent.runCommand("/boost info " + (page + 2)) : null)
+                                            ));
+                                })
                         )
-                        .color(INFORMATION_COLOR)
-                )
-                .append(newline())
-                .append(translatable("cwcore.boost.info.inactive")
-                        .args(text(player.getInactiveBoosts())
-                                .color(MENTION_COLOR)
-                        )
-                        .color(INFORMATION_COLOR)
-                )
-                .append(space())
-                .append(clickable(translatable("cwcore.boost.info.activate")
-                        .clickEvent(ClickEvent.runCommand("/boost activate"))
-                ))
-                .append(newline())
-                .append(join(
-                        JoinConfiguration.newlines(),
-                        boosts
-                                .stream()
-                                .skip(page * 5L)
-                                .map(boost -> listElement(boostAbout(boost)))
-                                .toList()
-                ))
-                .append(newline())
-                .append(clickable(translatable("cwcore.previous")
-                        .color(previous ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                        .clickEvent(previous ?
-                                ClickEvent.runCommand("/boost info " + (page)) : null)
-                ))
-                .append(space())
-                .append(clickable(translatable("cwcore.next")
-                        .color(next ? CLICKABLE_COLOR : INACTIVE_COLOR)
-                        .clickEvent(next ?
-                                ClickEvent.runCommand("/boost info " + (page + 2)) : null)
-                ));
+                );
     }
 
-    public Component addedOneBoost(CorePlayer player) {
-        return translatable("cwcore.boost.add.success")
-                .args(playerMention(player))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> addedOneBoost(CorePlayer player) {
+        return player.asLight()
+                .map(lightPlayer -> translatable("cwcore.boost.add.success")
+                        .args(playerMention(lightPlayer))
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     public Component boostActivateConfirm(String command) {
@@ -696,38 +778,44 @@ public class CoreMessage {
                 );
     }
 
-    public Component profile(CorePlayer player) {
-        List<CoreTeam> teams = player.getRelations(CorePTRelation.Value.MEMBERSHIP, 11);
-        return empty()
-                .color(INFORMATION_COLOR)
-                .append(translatable("cwcore.profile.header")
-                        .args(playerMention(player))
-                )
-                .append(newline())
-                .append(translatable("cwcore.profile.reputation")
-                        .args(text(player.getReputation()).color(MENTION_COLOR))
-                )
-                .append(newline())
-                .append(translatable("cwcore.profile.teams")
-                        .args(teams.isEmpty() ?
-                                translatable("cwcore.none").color(MENTION_COLOR) :
-                                simpleLimitedList(
-                                        teams.stream()
-                                                .limit(10)
-                                                .map(CoreMessage::teamMention)
-                                                .toList(),
-                                        teams.size(),
-                                        10
+    public Mono<? extends Component> profile(CorePlayer player) {
+        return player.asLight()
+                .flatMap(lightPlayer -> player
+                        .getRelationsCount(CorePTRelation.Value.MEMBERSHIP)
+                        .flatMap(teamsCount -> player.getRelations(CorePTRelation.Value.MEMBERSHIP, CoreStatic.TOP_SIZE)
+                                .flatMap(CoreMessage::teamMention)
+                                .collectList()
+                                .map(teams -> empty()
+                                        .color(INFORMATION_COLOR)
+                                        .append(translatable("cwcore.profile.header")
+                                                .args(playerMention(lightPlayer))
+                                        )
+                                        .append(newline())
+                                        .append(translatable("cwcore.profile.reputation")
+                                                .args(text(player.getReputation()).color(MENTION_COLOR))
+                                        )
+                                        .append(newline())
+                                        .append(translatable("cwcore.profile.teams")
+                                                .args(teamsCount == 0 ?
+                                                        translatable("cwcore.none").color(MENTION_COLOR) :
+                                                        simpleLimitedList(
+                                                                teams,
+                                                                teamsCount,
+                                                                CoreStatic.TOP_SIZE
+                                                        )
+                                                )
+                                        )
                                 )
                         )
-                )
-                ;
+                );
     }
 
-    public Component selectTeamSuccess(CoreTeam team) {
-        return translatable("cwcore.team.select.success")
-                .args(teamMention(team))
-                .color(SUCCESS_COLOR);
+    public Mono<? extends Component> selectTeamSuccess(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.select.success")
+                        .args(teamMentionComponent)
+                        .color(SUCCESS_COLOR)
+                );
     }
 
     public Component selectTeamNeed() {
@@ -738,10 +826,12 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component teamNotMemberSelf(CoreTeam team) {
-        return translatable("cwcore.team.member.not.self")
-                .args(teamMention(team))
-                .color(FAIL_COLOR);
+    public Mono<? extends Component> teamNotMemberSelf(CoreTeam team) {
+        return teamMention(team)
+                .map(teamMentionComponent -> translatable("cwcore.team.member.not.self")
+                        .args(teamMentionComponent)
+                        .color(FAIL_COLOR)
+                );
     }
 
     public Component teamMessageEmpty() {
@@ -749,42 +839,47 @@ public class CoreMessage {
                 .color(FAIL_COLOR);
     }
 
-    public Component teamsReputationTop(List<CoreTeam> teams) {
-        return empty()
-                .append(translatable("cwcore.top.reputation.teams.header")
-                        .color(INFORMATION_COLOR))
-                .append(newline())
-                .append(join(
-                        JoinConfiguration.newlines(),
-                        teams.stream()
-                                .map(team -> listElement(
-                                        translatable("cwcore.top.reputation.element")
-                                                .args(
-                                                        teamMention(team),
-                                                        text(team.getReputation()).color(MENTION_COLOR)
-                                                )
-                                ))
-                                .toList()
-                ));
+    public Mono<? extends Component> teamsReputationTop(List<? extends CoreTeam> teams) {
+        return Flux.fromIterable(teams)
+                .flatMap(team -> team.getReputation()
+                        .flatMap(reputation -> teamMention(team)
+                                .map(teamMentionComponent -> listElement(
+                                                translatable("cwcore.top.reputation.element")
+                                                        .args(
+                                                                teamMentionComponent,
+                                                                text(reputation).color(MENTION_COLOR)
+                                                        )
+                                        )
+                                )
+                        )
+                )
+                .collectList()
+                .map(teamsComponent -> empty()
+                        .append(translatable("cwcore.top.reputation.teams.header")
+                                .color(INFORMATION_COLOR))
+                        .append(newline())
+                        .append(join(JoinConfiguration.newlines(), teamsComponent))
+                );
     }
 
-    public Component playersReputationTop(List<CorePlayer> players) {
-        return empty()
-                .append(translatable("cwcore.top.reputation.players.header")
-                        .color(INFORMATION_COLOR))
-                .append(newline())
-                .append(join(
-                        JoinConfiguration.newlines(),
-                        players.stream()
-                                .map(player -> listElement(
-                                        translatable("cwcore.top.reputation.element")
-                                                .args(
-                                                        playerMention(player),
-                                                        text(player.getReputation())
-                                                )
-                                ))
-                                .toList()
-                ));
+    public Mono<? extends Component> playersReputationTop(List<? extends CorePlayer> players) {
+        return Flux.fromIterable(players)
+                .flatMap(player -> player.asLight()
+                        .map(lightPlayer -> listElement(
+                                translatable("cwcore.top.reputation.element")
+                                        .args(
+                                                playerMention(lightPlayer),
+                                                text(player.getReputation())
+                                        )
+                        ))
+                )
+                .collectList()
+                .map(playersComponent -> empty()
+                        .append(translatable("cwcore.top.reputation.players.header")
+                                .color(INFORMATION_COLOR))
+                        .append(newline())
+                        .append(join(JoinConfiguration.newlines(), playersComponent))
+                );
     }
 
 }

@@ -22,9 +22,13 @@ public class PlayersTopCommand extends AbstractCoreCommand<VelocityCoreCommandSo
 
     @Override
     public void execute(VelocityCoreCommandSource source, Iterator<String> args) {
-        source.sendMessage(CoreMessage.playersReputationTop(
-                plugin.getDatabase().fetchPlayerReputationTop()
-        ));
+        int page = args.hasNext() ? Integer.parseInt(args.next()) - 1 : 0;
+        plugin.getDatabase().fetchPlayerReputationTop(page)
+                .collectList()
+                .flatMap(CoreMessage::playersReputationTop)
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

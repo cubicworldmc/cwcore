@@ -10,29 +10,31 @@ import org.jetbrains.annotations.Nullable;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class CoreColor {
 
-    private TextColor custom;
-    private int index;
+    private static final CoreColor EMPTY = new CoreColor(null, -1);
+
+    private final TextColor custom;
+    private final int index;
 
     public static CoreColor fromInteger(int colorValue) {
         if (colorValue < 0) return empty();
         if (colorValue <= 0xffffff) return fromCustom(TextColor.color(colorValue));
-        return fromIndex(colorValue & 0xff000000);
+        return fromIndex((colorValue & 0xff000000) - 1);
     }
 
     public static CoreColor empty() {
-        return new CoreColor(null, -1);
+        return EMPTY;
     }
 
     public static CoreColor fromCustom(@Nullable TextColor custom) {
-        return new CoreColor(custom, -1);
+        return custom == null ? empty() : new CoreColor(custom, -1);
     }
 
     public static CoreColor fromIndex(int index) {
-        return new CoreColor(null, index);
+        return index <= -1 ? empty() : new CoreColor(null, index);
     }
 
     public int toInteger() {
-        return isCustom() ? custom.value() : (isIndex() ? index << 24 : -1);
+        return isCustom() ? custom.value() : (isIndex() ? (index + 1) << 24 : -1);
     }
 
     public boolean isCustom() {
@@ -41,6 +43,10 @@ public class CoreColor {
 
     public boolean isIndex() {
         return index != -1;
+    }
+
+    public boolean isEmpty() {
+        return this == EMPTY;
     }
 
 }

@@ -1,6 +1,7 @@
 package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.event.Subscribe;
+import lombok.RequiredArgsConstructor;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -24,32 +25,18 @@ import java.util.List;
         permission = "cwcore.team.verifies",
         admin = true
 )
+@RequiredArgsConstructor
 public class TeamVerifiesCommand extends AbstractCoreCommand<VelocityCoreCommandSource> {
 
     private final VelocityPlugin plugin;
 
-    private final List<Integer> unVerified = Collections.synchronizedList(new ArrayList<>());
-
-    public TeamVerifiesCommand(VelocityPlugin plugin) {
-        this.plugin = plugin;
-        try (Connection connection = plugin.getDatabase().getConnection();
-             Statement statement = connection.createStatement()
-        ) {
-            ResultSet resultSet = statement.executeQuery("SELECT id FROM teams WHERE verified = false");
-            while (resultSet.next()) {
-                unVerified.add(resultSet.getInt(1));
-            }
-            resultSet.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        plugin.getServer().getEventManager().register(plugin, this);
-    }
-
     @Override
     public void execute(VelocityCoreCommandSource source, Iterator<String> args) {
-        int page = args.hasNext() ? Integer.parseInt(args.next()) - 1: 0;
-        source.sendMessage(CoreMessage.verifies(plugin.getDatabase(), page, unVerified));
+        int page = args.hasNext() ? Integer.parseInt(args.next()) - 1 : 0;
+        CoreMessage.verifies(plugin.getDatabase(), page)
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override
@@ -57,22 +44,4 @@ public class TeamVerifiesCommand extends AbstractCoreCommand<VelocityCoreCommand
         return Collections.emptyList();
     }
 
-    @Subscribe
-    public void verify(TeamVerifyEvent event) {
-        unVerified.remove((Object) event.getTeam().getId());
-    }
-
-    @Subscribe
-    public void create(TeamCreateEvent event) {
-        if (!event.getTeam().isVerified()) {
-            unVerified.add(event.getTeam().getId());
-        }
-    }
-
-    @Subscribe
-    public void delete(TeamDeleteEvent event) {
-        if (!event.getTeam().isVerified()) {
-            unVerified.remove(event.getTeam().getId());
-        }
-    }
 }

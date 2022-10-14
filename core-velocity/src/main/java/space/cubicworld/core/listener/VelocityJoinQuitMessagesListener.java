@@ -22,9 +22,9 @@ public class VelocityJoinQuitMessagesListener {
     public void change(Player changer, RegisteredServer previous, RegisteredServer next) {
         plugin.getDatabase()
                 .fetchPlayer(changer.getUniqueId())
-                .ifPresent(corePlayer -> {
-                    Component joinMessage = CoreMessage.joinMessage(corePlayer);
-                    Component quitMessage = CoreMessage.quitMessage(corePlayer);
+                .flatMap(corePlayer -> corePlayer.asLight().doOnNext(lightPlayer -> {
+                    Component joinMessage = CoreMessage.joinMessage(lightPlayer);
+                    Component quitMessage = CoreMessage.quitMessage(lightPlayer);
                     Optional.ofNullable(previous).map(RegisteredServer::getPlayersConnected)
                             .ifPresent(players -> players.stream()
                                     .filter(player -> !player.getUniqueId().equals(corePlayer.getId()))
@@ -39,7 +39,8 @@ public class VelocityJoinQuitMessagesListener {
                                             player, joinMessage
                                     ))
                             );
-                });
+                }))
+                .subscribe();
     }
 
     @Subscribe

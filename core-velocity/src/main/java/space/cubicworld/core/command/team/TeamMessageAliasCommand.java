@@ -2,6 +2,7 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -16,6 +17,7 @@ import space.cubicworld.core.util.MessageUtils;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 @CoreCommandAnnotation(
         name = "tmsg",
@@ -32,33 +34,36 @@ public class TeamMessageAliasCommand extends AbstractCoreCommand<VelocityCoreCom
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CorePlayer corePlayer = plugin.getDatabase()
+        plugin.getDatabase()
                 .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
-        CoreTeam selectedTeam = corePlayer.getSelectedTeam();
-        if (selectedTeam == null) {
-            source.sendMessage(CoreMessage.selectTeamNeed());
-            return;
-        }
-        CorePTRelation relation = plugin.getDatabase()
-                .fetchPTRelation(corePlayer.getId(), selectedTeam.getId())
-                .orElseThrow();
-        if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
-            source.sendMessage(CoreMessage.teamNotMemberSelf(selectedTeam));
-            return;
-        }
-        String message = MessageUtils.buildMessage(args);
-        if (message == null) {
-            source.sendMessage(CoreMessage.teamMessageEmpty());
-            return;
-        }
-        plugin.getServer().getEventManager().fireAndForget(
-                new TeamMessageEvent(
-                        corePlayer,
-                        selectedTeam,
-                        message
+                .flatMap(corePlayer -> corePlayer
+                        .getSelectedTeam()
+                        .flatMap(selectedTeam -> selectedTeam == null ?
+                                Mono.just(CoreMessage.selectTeamNeed()) :
+                                plugin.getDatabase()
+                                        .fetchPTRelation(corePlayer.getId(), selectedTeam.getId())
+                                        .flatMap(relation -> {
+                                            if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
+                                                return CoreMessage.teamNotMemberSelf(selectedTeam);
+                                            }
+                                            String message = MessageUtils.buildMessage(args);
+                                            if (message == null) {
+                                                return Mono.just(CoreMessage.teamMessageEmpty());
+                                            }
+                                            plugin.getServer().getEventManager().fireAndForget(
+                                                    new TeamMessageEvent(
+                                                            corePlayer,
+                                                            selectedTeam,
+                                                            message
+                                                    )
+                                            );
+                                            return Mono.empty();
+                                        })
+                        )
                 )
-        );
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

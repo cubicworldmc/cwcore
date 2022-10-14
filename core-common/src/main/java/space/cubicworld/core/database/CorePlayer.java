@@ -2,12 +2,18 @@ package space.cubicworld.core.database;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.json.CoreLightPlayer;
 
-import java.util.List;
+import java.util.UUID;
 
-public interface CorePlayer extends CoreLightPlayer {
+public interface CorePlayer {
+
+    UUID getId();
+
+    String getName();
 
     void setName(@NotNull String name);
 
@@ -20,30 +26,31 @@ public interface CorePlayer extends CoreLightPlayer {
 
     void setGlobalColor(@NotNull CoreColor color);
 
-    @Nullable
-    CoreTeam getSelectedTeam();
+    Mono<? extends CoreTeam> getSelectedTeam();
 
     @Nullable
     Integer getSelectedTeamId();
 
     void setSelectedTeam(@Nullable CoreTeam team);
 
-    @NotNull List<CoreTeam> getRelations(CorePTRelation.Value value, int count);
+    Flux<? extends CoreTeam> getRelations(CorePTRelation.Value value, long count);
 
-    default List<CoreTeam> getAllRelations(CorePTRelation.Value value) {
-        return getRelations(value, CoreRelationCache.ALL);
+    Flux<? extends CoreTeam> getRelations(CorePTRelation.Value value, long count, long skip);
+
+    default Flux<? extends CoreTeam> getAllRelations(CorePTRelation.Value value) {
+        return getRelations(value, -1);
     }
 
-    int getRelationsCount(CorePTRelation.Value value);
+    Mono<Long> getRelationsCount(CorePTRelation.Value value);
 
-    List<CoreBoost> getBoosts();
+    Flux<? extends CoreBoost> getBoosts(long count, long skip);
+
+    Mono<Long> getBoostsCount();
 
     void setInactiveBoosts(int boosts);
 
     int getInactiveBoosts();
 
-    void incrementInactiveBoosts();
-
-    void decrementInactiveBoosts();
+    Mono<? extends CoreLightPlayer> asLight();
 
 }

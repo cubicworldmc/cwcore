@@ -2,6 +2,8 @@ package space.cubicworld.core.command.team;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -35,31 +37,33 @@ public class TeamLeaveCommand extends AbstractCoreCommand<VelocityCoreCommandSou
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CorePlayer corePlayer = plugin
-                .getDatabase()
-                .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
         plugin
                 .getDatabase()
-                .fetchTeam(teamName)
-                .filter(team -> !team.getOwnerId().equals(corePlayer.getId()))
-                .ifPresentOrElse(
-                        team -> {
-                            CorePTRelation relation = plugin
-                                    .getDatabase()
-                                    .fetchPTRelation(corePlayer.getId(), team.getId())
-                                    .orElseThrow();
-                            if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
-                                source.sendMessage(CoreMessage.teamLeaveCanNot(teamName));
-                            }
-                            relation.setValue(CorePTRelation.Value.NONE);
-                            plugin.getDatabase().update(relation);
-                            source.sendMessage(CoreMessage.teamLeaved(team));
-                            plugin.getServer().getEventManager()
-                                    .fireAndForget(new TeamLeaveEvent(corePlayer, team));
-                        },
-                        () -> source.sendMessage(CoreMessage.teamLeaveCanNot(teamName))
-                );
+                .fetchPlayer(player.getUniqueId())
+                .flatMap(corePlayer -> plugin
+                        .getDatabase()
+                        .fetchTeam(teamName)
+                        .filter(team -> !team.getOwnerId().equals(corePlayer.getId()))
+                        .flatMap(team -> plugin
+                                .getDatabase()
+                                .fetchPTRelation(corePlayer.getId(), team.getId())
+                                .flatMap(relation -> {
+                                    if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
+                                        return Mono.just(CoreMessage.teamLeaveCanNot(teamName));
+                                    }
+                                    relation.setValue(CorePTRelation.Value.NONE);
+                                    return plugin.getDatabase().update(relation)
+                                            .then(CoreMessage.teamLeaved(team))
+                                            .doOnNext(it -> plugin.getServer().getEventManager()
+                                                    .fireAndForget(new TeamLeaveEvent(corePlayer, team))
+                                            );
+                                })
+                        )
+                        .defaultIfEmpty(CoreMessage.teamLeaveCanNot(teamName))
+                        .doOnNext(source::sendMessage)
+                )
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

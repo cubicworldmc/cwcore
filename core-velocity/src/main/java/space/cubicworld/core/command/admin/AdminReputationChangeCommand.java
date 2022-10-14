@@ -2,6 +2,8 @@ package space.cubicworld.core.command.admin;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -43,26 +45,30 @@ public class AdminReputationChangeCommand extends AbstractCoreCommand<VelocityCo
         int amount = Integer.parseInt(args.next());
         plugin.getDatabase()
                 .fetchPlayer(playerName)
-                .ifPresentOrElse(
-                        player -> {
-                            int newReputation = player.getReputation();
-                            switch (operation.toLowerCase(Locale.ROOT)) {
-                                case "+", "add" -> newReputation += amount;
-                                case "-", "sub" -> newReputation -= amount;
-                                case "=", "set" -> newReputation = amount;
-                            }
-                            int previous = player.getReputation();
-                            if (newReputation != previous) {
-                                player.setReputation(newReputation);
-                                plugin.getDatabase().update(player);
-                                plugin.getServer().getEventManager().fireAndForget(
-                                        new ReputationChangeEvent(player, previous, newReputation)
-                                );
-                            }
-                            source.sendMessage(CoreMessage.playerReputation(player));
-                        },
-                        () -> source.sendMessage(CoreMessage.playerNotExist(playerName))
-                );
+                .flatMap(player -> {
+                    int newReputation = player.getReputation();
+                    switch (operation.toLowerCase(Locale.ROOT)) {
+                        case "+", "add" -> newReputation += amount;
+                        case "-", "sub" -> newReputation -= amount;
+                        case "=", "set" -> newReputation = amount;
+                    }
+                    int previous = player.getReputation();
+                    Mono<Void> result;
+                    if (newReputation != previous) {
+                        player.setReputation(newReputation);
+                        result = plugin.getDatabase().update(player);
+                        plugin.getServer().getEventManager().fireAndForget(
+                                new ReputationChangeEvent(player, previous, newReputation)
+                        );
+                    } else {
+                        result = Mono.empty();
+                    }
+                    return result.then(CoreMessage.playerReputation(player).doOnNext(source::sendMessage));
+                }).map(it -> (Component) it)
+                .defaultIfEmpty(CoreMessage.playerNotExist(playerName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

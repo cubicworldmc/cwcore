@@ -17,37 +17,29 @@ public class TeamInvitationNotification {
 
     @Subscribe
     public void invite(TeamInviteEvent event) {
-        plugin.getServer().getPlayer(event.getInvited().getId())
+        plugin.getServer()
+                .getPlayer(event.getInvited().getId())
                 .filter(plugin::isRealJoined)
-                .ifPresent(player -> {
-                    try {
-                        VelocityCoreCommandSource.sendLocaleMessage(player,
-                                CoreMessage.teamInvite(
-                                        plugin
-                                                .getDatabase()
-                                                .fetchPlayer(event.getInviter().getUniqueId())
-                                                .orElseThrow(),
-                                        event.getTeam()
-                                )
-                        );
-                    } catch (Exception e) {
-                        plugin.getLogger().error("Failed to fetch player:", e);
-                    }
-                });
+                .ifPresent(player -> plugin
+                        .getDatabase()
+                        .fetchPlayer(event.getInviter().getUniqueId())
+                        .flatMap(inviter -> CoreMessage.teamInvite(inviter, event.getTeam()))
+                        .doOnNext(teamInviteComponent -> VelocityCoreCommandSource.sendLocaleMessage(player, teamInviteComponent))
+                        .subscribe()
+                );
     }
 
     @Subscribe
     public void join(RealJoinEvent event) {
-        CorePlayer corePlayer = plugin
+        plugin
                 .getDatabase()
                 .fetchPlayer(event.getPlayer().getUniqueId())
-                .orElseThrow();
-        int invitesCount = corePlayer.getRelationsCount(CorePTRelation.Value.INVITE);
-        if (invitesCount == 0) return;
-        VelocityCoreCommandSource.sendLocaleMessage(
-                event.getPlayer(),
-                CoreMessage.teamInviteJoinNotification(invitesCount)
-        );
+                .flatMap(corePlayer -> corePlayer.getRelationsCount(CorePTRelation.Value.INVITE)
+                        .filter(invitesCount -> invitesCount != 0)
+                        .map(CoreMessage::teamInviteJoinNotification)
+                )
+                .doOnNext(message -> VelocityCoreCommandSource.sendLocaleMessage(event.getPlayer(), message))
+                .subscribe();
     }
 
 }

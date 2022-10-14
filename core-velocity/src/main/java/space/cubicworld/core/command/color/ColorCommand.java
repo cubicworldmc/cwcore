@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.util.TriState;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.command.AbstractCoreCommand;
@@ -35,43 +36,48 @@ public class ColorCommand extends AbstractCoreCommand<VelocityCoreCommandSource>
             source.sendMessage(CoreMessage.forPlayer());
             return;
         }
-        CorePlayer corePlayer = plugin.getDatabase()
+        plugin.getDatabase()
                 .fetchPlayer(player.getUniqueId())
-                .orElseThrow();
-        if (!args.hasNext()) {
-            source.sendMessage(CoreMessage.colorInfo(
-                    source.getPermission("cwcore.color.custom") == TriState.TRUE,
-                    corePlayer,
-                    plugin.getCore().getColorIndexContainer().getColors()
-            ));
-            return;
-        }
-        String color = args.next();
-        TextColor textColor;
-        CoreColor coreColor;
-        if (color.equals("-")) { // by index
-            int index = Integer.parseInt(args.next());
-            textColor = plugin.getCore()
-                    .getColorIndexContainer()
-                    .getColor(index, corePlayer)
-                    .orElse(null);
-            coreColor = CoreColor.fromIndex(index);
-        }
-        else {
-            textColor = ColorUtils.checkedFromLocalized(color);
-            coreColor = CoreColor.fromCustom(ColorUtils.checkedFromLocalized(color));
-        }
-        if (textColor == null) {
-            source.sendMessage(CoreMessage.colorBad());
-            return;
-        }
-        CoreColor previous = corePlayer.getGlobalColor();
-        corePlayer.setGlobalColor(coreColor);
-        plugin.getDatabase().update(corePlayer);
-        source.sendMessage(CoreMessage.colorSuccess(textColor));
-        plugin.getServer().getEventManager().fireAndForget(
-                new ColorChangeEvent(corePlayer, previous, coreColor)
-        );
+                .flatMap(corePlayer -> {
+                    if (!args.hasNext()) {
+                        source.sendMessage(CoreMessage.colorInfo(
+                                source.getPermission("cwcore.color.custom") == TriState.TRUE,
+                                corePlayer,
+                                plugin.getCore().getColorIndexContainer().getColors()
+                        ));
+                        return Mono.empty();
+                    }
+                    String color = args.next();
+                    TextColor textColor;
+                    CoreColor coreColor;
+                    if (color.equals("-")) { // by index
+                        if (!args.hasNext()) return Mono.empty();
+                        int index = Integer.parseInt(args.next());
+                        textColor = plugin.getCore()
+                                .getColorIndexContainer()
+                                .getColor(index, corePlayer)
+                                .orElse(null);
+                        coreColor = CoreColor.fromIndex(index);
+                    } else {
+                        textColor = ColorUtils.checkedFromLocalized(color);
+                        coreColor = CoreColor.fromCustom(ColorUtils.checkedFromLocalized(color));
+                    }
+                    if (textColor == null) {
+                        source.sendMessage(CoreMessage.colorBad());
+                        return Mono.empty();
+                    }
+                    CoreColor previous = corePlayer.getGlobalColor();
+                    corePlayer.setGlobalColor(coreColor);
+                    return plugin.getDatabase().update(corePlayer)
+                            .doOnSuccess(it -> {
+                                source.sendMessage(CoreMessage.colorSuccess(textColor));
+                                plugin.getServer().getEventManager().fireAndForget(
+                                        new ColorChangeEvent(corePlayer, previous, coreColor)
+                                );
+                            });
+                })
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

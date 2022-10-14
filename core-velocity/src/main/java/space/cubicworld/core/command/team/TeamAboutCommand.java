@@ -3,6 +3,8 @@ package space.cubicworld.core.command.team;
 import com.velocitypowered.api.permission.Tristate;
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -32,17 +34,20 @@ public class TeamAboutCommand extends AbstractCoreCommand<VelocityCoreCommandSou
         String teamName = args.next();
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .ifPresentOrElse(
-                        team -> source.sendMessage(CoreMessage.teamAbout(
-                                team,
-                                (source.getSource().getPermissionValue("cwcore.team.about.hide.ignore") == Tristate.TRUE) ||
-                                (source.getSource() instanceof Player player && plugin.getDatabase()
-                                        .fetchPTRelation(player.getUniqueId(), team.getId())
-                                        .orElseThrow()
-                                        .getValue() == CorePTRelation.Value.MEMBERSHIP)
-                        )),
-                        () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                );
+                .flatMap(team -> Mono.just(source.getSource().getPermissionValue("cwcore.team.about.hide.ignore") == Tristate.TRUE)
+                        .flatMap(value -> value ? Mono.just(true) : (
+                                        source.getSource() instanceof Player player ?
+                                                plugin.getDatabase().fetchPTRelation(player.getUniqueId(), team.getId())
+                                                        .map(relation -> relation.getValue() == CorePTRelation.Value.MEMBERSHIP) :
+                                                Mono.just(false)
+                                )
+                        )
+                        .flatMap(forMember -> CoreMessage.teamAbout(team, forMember))
+                ).map(it -> (Component) it)
+                .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override

@@ -2,6 +2,7 @@ package space.cubicworld.core.database;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
@@ -12,8 +13,7 @@ public interface CoreBoost {
     @NotNull
     UUID getPlayerId();
 
-    @NotNull
-    CorePlayer getPlayer();
+    Mono<? extends CorePlayer> getPlayer();
 
     long getEnd();
 
@@ -30,8 +30,7 @@ public interface CoreBoost {
     @Nullable
     Integer getTeamId();
 
-    @Nullable
-    CoreTeam getTeam();
+    Mono<? extends CoreTeam> getTeam();
 
     void toTeam(int teamId);
 

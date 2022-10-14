@@ -2,6 +2,8 @@ package space.cubicworld.core.command.boost;
 
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
@@ -39,39 +41,42 @@ public class BoostUseCommand extends AbstractCoreCommand<VelocityCoreCommandSour
             source.sendMessage(CoreMessage.boostNotEdit());
             return;
         }
-        CoreBoost boost = plugin.getDatabase().fetchBoost(id).orElseThrow();
-        if (!boost.getPlayerId().equals(player.getUniqueId())) {
-            source.sendMessage(CoreMessage.boostActivateOwningFalse());
-            return;
-        }
-        switch (args.next().toLowerCase(Locale.ROOT)) {
-            case "team" -> {
-                if (!args.hasNext()) {
-                    source.sendMessage(CoreMessage.provideTeamName());
-                    return;
-                }
-                String teamName = args.next();
-                plugin.getDatabase().fetchTeam(teamName)
-                        .ifPresentOrElse(
-                                team -> {
-                                    boost.toTeam(team.getId());
-                                    plugin.getDatabase().update(boost);
-                                    plugin.getServer().getEventManager().fireAndForget(
-                                            new BoostUpdateEvent(boost)
-                                    );
-                                    source.sendMessage(CoreMessage.boostAbout(boost));
-                                },
-                                () -> source.sendMessage(CoreMessage.teamNotExist(teamName))
-                        );
-            }
-            case "clear" -> {
-                boost.clear();
-                plugin.getDatabase().update(boost);
-                plugin.getServer().getEventManager().fireAndForget(new BoostUpdateEvent(boost));
-                source.sendMessage(CoreMessage.boostAbout(boost));
-            }
-            default -> source.sendMessage(CoreMessage.boostNotEdit());
-        }
+        plugin.getDatabase()
+                .fetchBoost(id)
+                .flatMap(boost -> {
+                    if (!boost.getPlayerId().equals(player.getUniqueId())) {
+                        source.sendMessage(CoreMessage.boostActivateOwningFalse());
+                        return Mono.empty();
+                    }
+                    return switch (args.next().toLowerCase(Locale.ROOT)) {
+                        case "team" -> {
+                            if (!args.hasNext()) {
+                                yield Mono.just(CoreMessage.provideTeamName());
+                            }
+                            String teamName = args.next();
+                            yield plugin.getDatabase().fetchTeam(teamName)
+                                    .flatMap(team -> {
+                                        boost.toTeam(team.getId());
+                                        return plugin.getDatabase().update(boost)
+                                                .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(
+                                                        new BoostUpdateEvent(boost)
+                                                ))
+                                                .then(CoreMessage.boostAbout(boost));
+                                    }).map(it -> (Component) it)
+                                    .defaultIfEmpty(CoreMessage.teamNotExist(teamName));
+                        }
+                        case "clear" -> {
+                            boost.clear();
+                            yield plugin.getDatabase().update(boost)
+                                    .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(new BoostUpdateEvent(boost)))
+                                    .then(CoreMessage.boostAbout(boost));
+                        }
+                        default -> Mono.just(CoreMessage.boostNotEdit());
+                    };
+                })
+                .doOnNext(source::sendMessage)
+                .doOnError(this.errorLog(plugin.getLogger()))
+                .subscribe();
     }
 
     @Override
