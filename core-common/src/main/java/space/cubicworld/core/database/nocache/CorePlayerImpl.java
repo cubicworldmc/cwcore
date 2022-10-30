@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.*;
 import space.cubicworld.core.json.CoreLightPlayer;
+import space.cubicworld.core.json.CoreLightPlayerImpl;
 
 import java.util.UUID;
 
@@ -61,7 +62,9 @@ class CorePlayerImpl implements CorePlayer {
     @Override
     public Mono<? extends CoreLightPlayer> asLight() {
         return database.getResolver().resolve(this, globalColor)
-                .map(resolvedGlobalColor -> new CoreLightPlayerData(id, name, resolvedGlobalColor))
-                .defaultIfEmpty(new CoreLightPlayerData(id, name, null));
+                .flatMap(resolvedGlobalColor -> getSelectedTeam()
+                        .map(selectedTeam -> (CoreLightPlayer) new CoreLightPlayerData(id, name, resolvedGlobalColor, selectedTeam.getName()))
+                )
+                .defaultIfEmpty(CoreLightPlayerImpl.defaultImpl(id, name));
     }
 }

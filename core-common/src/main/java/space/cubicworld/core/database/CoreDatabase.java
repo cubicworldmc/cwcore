@@ -6,7 +6,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-public interface CoreDatabase {
+public interface CoreDatabase extends AutoCloseable {
 
     Mono<? extends Connection> getConnection();
 

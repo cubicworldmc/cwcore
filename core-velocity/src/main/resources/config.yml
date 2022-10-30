@@ -3,6 +3,7 @@ mysql:
   username: 'root'
   password: '1'
   database: 'cwcore'
+  ssl: true
 
 ignored-servers: ['reg-limbo']
 

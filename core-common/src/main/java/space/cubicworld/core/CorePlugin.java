@@ -21,6 +21,7 @@ public class CorePlugin {
             String mysqlUsername,
             String mysqlPassword,
             String mysqlDatabase,
+            boolean mysqlSsl,
             ClassLoader classLoader,
             CoreResolver resolver,
             Map<String, String> colors
@@ -30,6 +31,7 @@ public class CorePlugin {
                 mysqlUsername,
                 mysqlPassword,
                 mysqlDatabase,
+                mysqlSsl,
                 classLoader,
                 resolver
         );

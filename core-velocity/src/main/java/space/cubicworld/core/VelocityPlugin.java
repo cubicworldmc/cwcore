@@ -96,6 +96,7 @@ public class VelocityPlugin {
                 config.get("mysql.username"),
                 config.get("mysql.password"),
                 config.get("mysql.database"),
+                config.get("mysql.ssl"),
                 getClass().getClassLoader(),
                 new VelocityCoreResolver(this),
                 colors
