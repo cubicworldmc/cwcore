@@ -38,27 +38,25 @@ public class TeamMessageAliasCommand extends AbstractCoreCommand<VelocityCoreCom
                 .fetchPlayer(player.getUniqueId())
                 .flatMap(corePlayer -> corePlayer
                         .getSelectedTeam()
-                        .flatMap(selectedTeam -> selectedTeam == null ?
-                                Mono.just(CoreMessage.selectTeamNeed()) :
-                                plugin.getDatabase()
-                                        .fetchPTRelation(corePlayer.getId(), selectedTeam.getId())
-                                        .flatMap(relation -> {
-                                            if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
-                                                return CoreMessage.teamNotMemberSelf(selectedTeam);
-                                            }
-                                            String message = MessageUtils.buildMessage(args);
-                                            if (message == null) {
-                                                return Mono.just(CoreMessage.teamMessageEmpty());
-                                            }
-                                            plugin.getServer().getEventManager().fireAndForget(
-                                                    new TeamMessageEvent(
-                                                            corePlayer,
-                                                            selectedTeam,
-                                                            message
-                                                    )
-                                            );
-                                            return Mono.empty();
-                                        })
+                        .flatMap(selectedTeam -> plugin.getDatabase()
+                                .fetchPTRelation(corePlayer.getId(), selectedTeam.getId())
+                                .flatMap(relation -> {
+                                    if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
+                                        return CoreMessage.teamNotMemberSelf(selectedTeam);
+                                    }
+                                    String message = MessageUtils.buildMessage(args);
+                                    if (message == null) {
+                                        return Mono.just(CoreMessage.teamMessageEmpty());
+                                    }
+                                    plugin.getServer().getEventManager().fireAndForget(
+                                            new TeamMessageEvent(
+                                                    corePlayer,
+                                                    selectedTeam,
+                                                    message
+                                            )
+                                    );
+                                    return Mono.empty();
+                                })
                         )
                 )
                 .doOnNext(source::sendMessage)

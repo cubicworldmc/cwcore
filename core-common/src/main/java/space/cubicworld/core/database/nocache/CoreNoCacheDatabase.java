@@ -11,6 +11,7 @@ import space.cubicworld.core.database.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public class CoreNoCacheDatabase implements CoreDatabase {
@@ -30,8 +31,17 @@ public class CoreNoCacheDatabase implements CoreDatabase {
             ClassLoader classLoader,
             CoreResolver resolver
     ) throws IOException {
+        String[] host = mysqlHost.split(":");
         factory = ConnectionFactories.get(
-                "r2dbcs:mysql://%s:%s@%s/%s".formatted(mysqlUsername, mysqlPassword, mysqlHost, mysqlDatabase)
+                ConnectionFactoryOptions.builder()
+                        .option(ConnectionFactoryOptions.DRIVER, "mysql")
+                        .option(ConnectionFactoryOptions.USER, mysqlUsername)
+                        .option(ConnectionFactoryOptions.PASSWORD, mysqlPassword)
+                        .option(ConnectionFactoryOptions.HOST, host.length == 0 ? "localhost" : host[0])
+                        .option(ConnectionFactoryOptions.PORT, host.length == 1 ? 3306 : Integer.parseInt(host[1]))
+                        .option(ConnectionFactoryOptions.DATABASE, mysqlDatabase)
+                        .option(ConnectionFactoryOptions.SSL, false)
+                        .build()
         );
         connection = Mono.from(factory.create());
         this.resolver = resolver;
@@ -203,13 +213,13 @@ public class CoreNoCacheDatabase implements CoreDatabase {
         return getConnection()
                 .flatMapMany(connection -> connection
                         .createStatement("""
-                                SELECT SUM(p.reputation) FROM team_player_relations r
+                                SELECT IFNULL(SUM(p.reputation), 0) FROM team_player_relations r
                                 INNER JOIN players p ON p.uuid = r.player_uuid AND r.relation = "MEMBERSHIP" AND r.team_id = ?
                                 """)
                         .bind(0, id)
                         .execute()
                 )
-                .flatMap(result -> result.map((row, metadata) -> row.get(0, Long.class)))
+                .flatMap(result -> result.map((row, metadata) -> row.get(0, BigDecimal.class).longValueExact()))
                 .singleOrEmpty();
     }
 
@@ -357,7 +367,7 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                         .createStatement("""
                                 SELECT t.* FROM teams t
                                 INNER JOIN team_player_relations r ON r.team_id = t.id AND r.player_uuid = ?owner AND r.relation = "MEMBERSHIP"
-                                WHERE t.owner_uuid = ?owner
+                                WHERE t.owner_uuid = ?owner AND t.verified = false
                                 """)
                         .bind("owner", player.toString())
                         .execute()
@@ -399,7 +409,7 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                         .createStatement("""
                                 SELECT t.* FROM team_player_relations r
                                 INNER JOIN players p ON p.uuid = r.player_uuid AND r.relation = "MEMBERSHIP"
-                                INNER JOIN teams t ON t.team_id = r.team_id
+                                INNER JOIN teams t ON t.id = r.team_id
                                 GROUP BY r.team_id
                                 ORDER BY SUM(DISTINCT p.reputation) DESC
                                 LIMIT ?,?
