@@ -25,7 +25,7 @@ public class CorePlugin {
             ClassLoader classLoader,
             CoreResolver resolver,
             Map<String, String> colors
-    ) throws IOException {
+    ) {
         database = new CoreNoCacheDatabase(
                 mysqlHost,
                 mysqlUsername,

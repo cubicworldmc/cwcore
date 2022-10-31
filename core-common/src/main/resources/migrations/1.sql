@@ -1,0 +1,2 @@
+ALTER TABLE players ADD COLUMN discord_id BIGINT UNIQUE KEY AFTER boosts;
+ALTER TABLE teams ADD COLUMN prefix VARCHAR(6) UNIQUE KEY AFTER owner_uuid;

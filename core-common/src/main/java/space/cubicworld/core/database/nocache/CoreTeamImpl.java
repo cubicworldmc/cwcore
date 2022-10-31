@@ -29,6 +29,7 @@ class CoreTeamImpl implements CoreTeam {
     private @NotNull UUID ownerId;
     private boolean hide;
     private boolean verified;
+    private String prefix;
 
     public void setName(String name) {
         updated = updated | 0x1;
@@ -53,6 +54,12 @@ class CoreTeamImpl implements CoreTeam {
     public void setVerified(boolean verified) {
         updated = updated | 0xf;
         this.verified = verified;
+    }
+
+    @Override
+    public void setPrefix(@Nullable String prefix) {
+        updated = updated | 0x10;
+        this.prefix = prefix;
     }
 
     @Override

@@ -12,6 +12,7 @@ import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.event.ColorChangeEvent;
 import space.cubicworld.core.event.ReputationChangeEvent;
+import space.cubicworld.core.event.TeamSelectEvent;
 import space.cubicworld.core.json.CoreJsonObjectMapper;
 import space.cubicworld.core.json.CoreLightPlayer;
 import space.cubicworld.core.json.CoreLightPlayerImpl;
@@ -40,6 +41,11 @@ public class VelocityPlayerUpdater {
 
     @Subscribe
     public void colorChange(ColorChangeEvent event) {
+        update(event.getPlayer());
+    }
+
+    @Subscribe
+    public void selectedTeamChange(TeamSelectEvent event) {
         update(event.getPlayer());
     }
 

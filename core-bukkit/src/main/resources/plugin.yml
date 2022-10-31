@@ -3,4 +3,6 @@ main: space.cubicworld.core.BukkitPlugin
 version: 1.0
 description: Core plugin for Cubic
 author: Jenya705
-api-version: 1.19
+api-version: 1.17
+softdepend:
+  - PlaceholderAPI

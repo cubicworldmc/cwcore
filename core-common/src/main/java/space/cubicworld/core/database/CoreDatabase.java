@@ -14,6 +14,8 @@ public interface CoreDatabase extends AutoCloseable {
 
     Mono<? extends CorePlayer> fetchPlayer(String name);
 
+    Mono<? extends CorePlayer> fetchPlayer(long discordId);
+
     Mono<? extends CoreTeam> fetchTeam(int id);
 
     Mono<? extends CoreTeam> fetchTeam(String name);

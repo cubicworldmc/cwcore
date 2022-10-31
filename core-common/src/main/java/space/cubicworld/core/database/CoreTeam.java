@@ -17,6 +17,11 @@ public interface CoreTeam {
     void setName(@NotNull String name);
 
     @Nullable
+    String getPrefix();
+
+    void setPrefix(@Nullable String prefix);
+
+    @Nullable
     String getDescription();
 
     void setDescription(@Nullable String description);

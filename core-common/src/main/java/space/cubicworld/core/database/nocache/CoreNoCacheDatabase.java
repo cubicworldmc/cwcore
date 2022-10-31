@@ -10,6 +10,7 @@ import space.cubicworld.core.CoreResolver;
 import space.cubicworld.core.CoreStatic;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.*;
+import space.cubicworld.core.database.migration.Migration;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +33,7 @@ public class CoreNoCacheDatabase implements CoreDatabase {
             boolean mysqlSsl,
             ClassLoader classLoader,
             CoreResolver resolver
-    ) throws IOException {
+    ) {
         String[] host = mysqlHost.split(":");
         factory = ConnectionFactories.get(
                 ConnectionFactoryOptions.builder()
@@ -48,20 +49,7 @@ public class CoreNoCacheDatabase implements CoreDatabase {
         );
         pool = new ConnectionPool(ConnectionPoolConfiguration.builder(factory).build());
         this.resolver = resolver;
-        try (InputStream setupSqlIs = classLoader.getResourceAsStream("setup.sql")) {
-            String setupSqlString = new String(setupSqlIs.readAllBytes());
-            String[] setupSqlStatements = setupSqlString.split(";");
-            Flux.usingWhen(
-                    getConnection(),
-                    connection -> Mono.from(connection.beginTransaction())
-                            .thenMany(Flux.fromArray(setupSqlStatements)
-                                    .map(connection::createStatement)
-                                    .flatMap(Statement::execute)
-                            )
-                            .thenMany(connection.commitTransaction()),
-                    Connection::close
-            ).collectList().block();
-        }
+        Migration.executeMigrationScripts(classLoader, this).block();
     }
 
     @Override
@@ -104,19 +92,36 @@ public class CoreNoCacheDatabase implements CoreDatabase {
         );
     }
 
-    private Flux<? extends CorePlayer> parsePlayers(Flux<? extends Result> flux) {
-        return flux.flatMap(
-                result -> result.map((row, metadata) -> CorePlayerImpl.builder()
-                        .database(this)
-                        .id(UUID.fromString(row.get(0, String.class)))
-                        .name(row.get(1, String.class))
-                        .reputation(row.get(2, Integer.class))
-                        .globalColor(CoreColor.fromInteger(row.get(3, Integer.class)))
-                        .selectedTeamId(row.get(4, Integer.class))
-                        .inactiveBoosts(row.get(5, Integer.class))
-                        .build()
-                )
+    @Override
+    public Mono<? extends CorePlayer> fetchPlayer(long discordId) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> parsePlayers(
+                        Flux.from(connection
+                                .createStatement("SELECT * FROM players WHERE discord_id = ?")
+                                .bind(0, discordId)
+                                .execute()
+                        )
+                ).singleOrEmpty(),
+                Connection::close
         );
+    }
+
+    private Flux<? extends CorePlayer> parsePlayers(Flux<? extends Result> flux) {
+        return flux.flatMap(result -> result.map(this::parsePlayer));
+    }
+
+    private CorePlayer parsePlayer(Row row, RowMetadata metadata) {
+        return CorePlayerImpl.builder()
+                .database(this)
+                .id(UUID.fromString(row.get(0, String.class)))
+                .name(row.get(1, String.class))
+                .reputation(row.get(2, Integer.class))
+                .globalColor(CoreColor.fromInteger(row.get(3, Integer.class)))
+                .selectedTeamId(row.get(4, Integer.class))
+                .inactiveBoosts(row.get(5, Integer.class))
+                .discordId(row.get(6, Long.class))
+                .build();
     }
 
     @Override
@@ -183,18 +188,20 @@ public class CoreNoCacheDatabase implements CoreDatabase {
     }
 
     private Flux<? extends CoreTeam> parseTeams(Flux<? extends Result> flux) {
-        return flux.flatMap(
-                result -> result.map((row, metadata) -> CoreTeamImpl.builder()
-                        .database(this)
-                        .id(row.get(0, Integer.class))
-                        .name(row.get(1, String.class))
-                        .description(row.get(2, String.class))
-                        .verified(row.get(3, Boolean.class))
-                        .hide(row.get(4, Boolean.class))
-                        .ownerId(UUID.fromString(row.get(5, String.class)))
-                        .build()
-                )
-        );
+        return flux.flatMap(result -> result.map(this::parseTeam));
+    }
+
+    private CoreTeam parseTeam(Row row, RowMetadata metadata) {
+        return CoreTeamImpl.builder()
+                .database(this)
+                .id(row.get(0, Integer.class))
+                .name(row.get(1, String.class))
+                .description(row.get(2, String.class))
+                .verified(row.get(3, Boolean.class))
+                .hide(row.get(4, Boolean.class))
+                .ownerId(UUID.fromString(row.get(5, String.class)))
+                .prefix(row.get(6, String.class))
+                .build();
     }
 
     @Override

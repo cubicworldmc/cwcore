@@ -33,6 +33,11 @@ public interface CorePlayer {
 
     void setSelectedTeam(@Nullable CoreTeam team);
 
+    @Nullable
+    Long getDiscordId();
+
+    void setDiscordId(@Nullable Long discordId);
+
     Flux<? extends CoreTeam> getRelations(CorePTRelation.Value value, long count);
 
     Flux<? extends CoreTeam> getRelations(CorePTRelation.Value value, long count, long skip);

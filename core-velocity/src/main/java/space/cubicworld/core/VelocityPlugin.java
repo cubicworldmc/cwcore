@@ -124,7 +124,7 @@ public class VelocityPlugin {
 
     @Subscribe
     public void shutdown(ProxyShutdownEvent event) throws Exception {
-
+        getDatabase().close();
     }
 
     public VelocityCommandHelper commandHelper() {

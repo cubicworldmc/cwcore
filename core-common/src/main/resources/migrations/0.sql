@@ -45,4 +45,4 @@ CREATE TABLE IF NOT EXISTS team_boosts (
     PRIMARY KEY(boost_id, team_id),
     FOREIGN KEY(boost_id) REFERENCES player_boosts(id) ON DELETE CASCADE,
     FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE
-)
+);
