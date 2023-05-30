@@ -18,7 +18,7 @@ public class CoreLightPlayerImpl implements CoreLightPlayer {
                 player.getId(),
                 player.getName(),
                 globalColor == null ? -1 : globalColor.value(),
-                player.getSelectedTeamName()
+                player.getSelectedTeamPrefix()
         );
     }
 
@@ -29,7 +29,7 @@ public class CoreLightPlayerImpl implements CoreLightPlayer {
     private UUID id;
     private String name;
     private int color;
-    private String selectedTeamName;
+    private String selectedTeamPrefix;
 
     @JsonIgnore
     public TextColor getResolvedGlobalColor() {

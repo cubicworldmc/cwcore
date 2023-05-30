@@ -41,7 +41,7 @@ public class TeamSelectCommand extends AbstractCoreCommand<VelocityCoreCommandSo
                 .flatMap(corePlayer -> plugin.getDatabase()
                         .fetchTeam(teamName)
                         .flatMap(team -> {
-                            Integer previous = corePlayer.getSelectedTeamId();
+                            int previous = corePlayer.getSelectedTeamId();
                             corePlayer.setSelectedTeam(team);
                             return plugin.getDatabase().update(corePlayer)
                                     .doOnSuccess(it -> plugin.getServer().getEventManager().fireAndForget(

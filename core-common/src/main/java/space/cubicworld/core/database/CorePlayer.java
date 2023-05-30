@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.json.CoreLightPlayer;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CorePlayer {
@@ -28,8 +29,7 @@ public interface CorePlayer {
 
     Mono<? extends CoreTeam> getSelectedTeam();
 
-    @Nullable
-    Integer getSelectedTeamId();
+    int getSelectedTeamId();
 
     void setSelectedTeam(@Nullable CoreTeam team);
 

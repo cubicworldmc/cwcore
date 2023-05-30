@@ -3,10 +3,12 @@ package space.cubicworld.core.command.team;
 import com.velocitypowered.api.proxy.Player;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import reactor.core.publisher.Mono;
 import space.cubicworld.core.VelocityPlugin;
 import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
+import space.cubicworld.core.database.CorePTRelation;
 import space.cubicworld.core.database.CorePlayer;
 import space.cubicworld.core.event.TeamMessageEvent;
 import space.cubicworld.core.message.CoreMessage;
@@ -44,17 +46,22 @@ public class TeamMessageCommand extends AbstractCoreCommand<VelocityCoreCommandS
                 .doOnSuccess(team -> {
                     if (team == null) source.sendMessage(CoreMessage.teamNotExist(teamName));
                 })
-                .flatMap(team -> plugin.getDatabase()
-                        .fetchPlayer(player.getUniqueId())
-                        .doOnNext(corePlayer -> {
+                .flatMap(team -> plugin
+                        .getDatabase()
+                        .fetchPTRelation(player.getUniqueId(), team.getId()).flatMap(relation -> {
+                            if (relation.getValue() != CorePTRelation.Value.MEMBERSHIP) {
+                                return CoreMessage.teamNotMemberSelf(team);
+                            }
                             String message = MessageUtils.buildMessage(args);
                             if (message == null) {
                                 source.sendMessage(CoreMessage.teamMessageEmpty());
-                                return;
+                                return Mono.empty();
                             }
-                            plugin.getServer().getEventManager().fireAndForget(
-                                    new TeamMessageEvent(corePlayer, team, message)
-                            );
+                            return plugin.getDatabase()
+                                    .fetchPlayer(player.getUniqueId())
+                                    .doOnNext(corePlayer -> plugin.getServer().getEventManager().fireAndForget(
+                                            new TeamMessageEvent(corePlayer, team, message)
+                                    ));
                         })
                 )
                 .doOnError(this.errorLog(plugin.getLogger()))

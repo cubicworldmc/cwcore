@@ -4,8 +4,10 @@ import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.*;
 import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import space.cubicworld.core.CorePlugin;
 import space.cubicworld.core.CoreResolver;
 import space.cubicworld.core.CoreStatic;
 import space.cubicworld.core.color.CoreColor;
@@ -23,33 +25,29 @@ public class CoreNoCacheDatabase implements CoreDatabase {
     private final ConnectionPool pool;
 
     @Getter
-    private final CoreResolver resolver;
+    private final CorePlugin plugin;
 
-    public CoreNoCacheDatabase(
-            String mysqlHost,
-            String mysqlUsername,
-            String mysqlPassword,
-            String mysqlDatabase,
-            boolean mysqlSsl,
-            ClassLoader classLoader,
-            CoreResolver resolver
-    ) {
-        String[] host = mysqlHost.split(":");
+    public CoreResolver getResolver() {
+        return plugin.getResolver();
+    }
+
+    public CoreNoCacheDatabase(CorePlugin plugin) {
+        this.plugin = plugin;
+        String[] host = plugin.getConfig().<String>get("mysql.host").split(":");
         factory = ConnectionFactories.get(
                 ConnectionFactoryOptions.builder()
                         .option(ConnectionFactoryOptions.DRIVER, "pool")
                         .option(ConnectionFactoryOptions.PROTOCOL, "mysql")
-                        .option(ConnectionFactoryOptions.USER, mysqlUsername)
-                        .option(ConnectionFactoryOptions.PASSWORD, mysqlPassword)
+                        .option(ConnectionFactoryOptions.USER, plugin.getConfig().get("mysql.username"))
+                        .option(ConnectionFactoryOptions.PASSWORD, plugin.getConfig().get("mysql.password"))
                         .option(ConnectionFactoryOptions.HOST, host.length == 0 ? "localhost" : host[0])
                         .option(ConnectionFactoryOptions.PORT, host.length == 1 ? 3306 : Integer.parseInt(host[1]))
-                        .option(ConnectionFactoryOptions.DATABASE, mysqlDatabase)
-                        .option(ConnectionFactoryOptions.SSL, mysqlSsl)
+                        .option(ConnectionFactoryOptions.DATABASE, plugin.getConfig().get("mysql.database"))
+                        .option(ConnectionFactoryOptions.SSL, plugin.getConfig().get("mysql.ssl"))
                         .build()
         );
         pool = new ConnectionPool(ConnectionPoolConfiguration.builder(factory).build());
-        this.resolver = resolver;
-        Migration.executeMigrationScripts(classLoader, this).block();
+        Migration.executeMigrationScripts(plugin.getClassLoader(), this).block();
     }
 
     @Override
@@ -147,6 +145,21 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                         Flux.from(connection
                                 .createStatement("SELECT * FROM teams WHERE name = ?")
                                 .bind(0, name)
+                                .execute()
+                        )
+                ).singleOrEmpty(),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Mono<? extends CoreTeam> fetchTeamByPrefix(@NotNull String prefix) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> parseTeams(
+                        Flux.from(connection
+                                .createStatement("SELECT * FROM teams WHERE prefix = ?")
+                                .bind(0, prefix)
                                 .execute()
                         )
                 ).singleOrEmpty(),
@@ -661,10 +674,9 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                             .bind(0, player.getName())
                             .bind(1, player.getReputation())
                             .bind(2, player.getGlobalColor().toInteger())
+                            .bind(3, player.getSelectedTeamId())
                             .bind(4, player.getInactiveBoosts())
                             .bind(5, player.getId().toString());
-                    if (player.getSelectedTeamId() == null) statement.bindNull(3, Integer.class);
-                    else statement.bind(3, player.getSelectedTeamId());
                     return Mono.fromDirect(statement.execute()).then();
                 },
                 Connection::close

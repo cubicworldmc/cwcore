@@ -22,6 +22,6 @@ public interface CoreLightPlayer {
     TextColor getResolvedGlobalColor();
 
     @Nullable
-    String getSelectedTeamName();
+    String getSelectedTeamPrefix();
 
 }

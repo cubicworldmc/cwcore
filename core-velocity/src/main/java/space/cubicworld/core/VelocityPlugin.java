@@ -88,18 +88,13 @@ public class VelocityPlugin {
                 .autosave()
                 .build();
         config.load();
-        AbstractConfig colorsConfig = config.get("colors");
-        Map<String, String> colors = new LinkedHashMap<>();
-        colorsConfig.valueMap().forEach((key, value) -> colors.put(key, value.toString()));
         this.core = new CorePlugin(
-                config.get("mysql.host"),
-                config.get("mysql.username"),
-                config.get("mysql.password"),
-                config.get("mysql.database"),
-                config.get("mysql.ssl"),
-                getClass().getClassLoader(),
-                new VelocityCoreResolver(this),
-                colors
+                new CoreBootstrap(
+                        getClass().getClassLoader(),
+                        new VelocityCoreResolver(this),
+                        config,
+                        logger
+                )
         );
     }
 

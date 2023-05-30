@@ -1,6 +1,7 @@
 package space.cubicworld.core.database;
 
 import io.r2dbc.spi.Connection;
+import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -19,6 +20,8 @@ public interface CoreDatabase extends AutoCloseable {
     Mono<? extends CoreTeam> fetchTeam(int id);
 
     Mono<? extends CoreTeam> fetchTeam(String name);
+
+    Mono<? extends CoreTeam> fetchTeamByPrefix(@NotNull String prefix);
 
     Flux<? extends CoreTeam> fetchTeamsByVerified(boolean verified, long count, long skip);
 

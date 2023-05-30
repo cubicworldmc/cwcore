@@ -882,4 +882,30 @@ public class CoreMessage {
                 );
     }
 
+    public Component teamSettingsPrefixNotVerified() {
+        return translatable("cwcore.team.settings.value.prefix.verified.false")
+                .color(FAIL_COLOR);
+    }
+
+    public Component teamSettingsPrefixBad() {
+        return translatable("cwcore.team.settings.value.prefix.bad")
+                .color(FAIL_COLOR);
+    }
+
+    public Mono<? extends Component> teamSettingsPrefixUpdated(CoreTeam team, String prefix) {
+        return teamMention(team)
+                .map(teamMention -> translatable("cwcore.team.settings.value.prefix.success")
+                        .color(SUCCESS_COLOR)
+                        .args(
+                                teamMention,
+                                (prefix == null ? translatable("cwcore.none") : text(prefix)).color(MENTION_COLOR)
+                        )
+                );
+    }
+
+    public Component teamSettingsPrefixExist() {
+        return translatable("cwcore.team.settings.value.prefix.verified.exist")
+                .color(FAIL_COLOR);
+    }
+
 }

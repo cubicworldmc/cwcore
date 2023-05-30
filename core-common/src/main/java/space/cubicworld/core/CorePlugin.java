@@ -1,6 +1,7 @@
 package space.cubicworld.core;
 
 import lombok.Getter;
+import lombok.experimental.Delegate;
 import org.slf4j.Logger;
 import space.cubicworld.core.color.CoreColorIndexContainer;
 import space.cubicworld.core.database.CoreDatabase;
@@ -15,27 +16,13 @@ public class CorePlugin {
 
     private final CoreDatabase database;
     private final CoreColorIndexContainer colorIndexContainer;
+    @Delegate
+    private final CoreBootstrap bootstrap;
 
-    public CorePlugin(
-            String mysqlHost,
-            String mysqlUsername,
-            String mysqlPassword,
-            String mysqlDatabase,
-            boolean mysqlSsl,
-            ClassLoader classLoader,
-            CoreResolver resolver,
-            Map<String, String> colors
-    ) {
-        database = new CoreNoCacheDatabase(
-                mysqlHost,
-                mysqlUsername,
-                mysqlPassword,
-                mysqlDatabase,
-                mysqlSsl,
-                classLoader,
-                resolver
-        );
-        colorIndexContainer = new CoreColorIndexContainer(colors);
+    public CorePlugin(CoreBootstrap bootstrap) {
+        this.bootstrap = bootstrap;
+        database = new CoreNoCacheDatabase(this);
+        colorIndexContainer = new CoreColorIndexContainer(this);
     }
 
 }

@@ -1,0 +1,1 @@
+ALTER TABLE players MODIFY COLUMN selected_team_id INT NOT NULL DEFAULT 0;

@@ -13,6 +13,6 @@ public class CoreLightPlayerData implements CoreLightPlayer {
     private final UUID id;
     private final String name;
     private final TextColor resolvedGlobalColor;
-    private final @Nullable String selectedTeamName;
+    private final @Nullable String selectedTeamPrefix;
 
 }

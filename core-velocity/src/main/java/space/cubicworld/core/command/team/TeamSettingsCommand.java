@@ -8,6 +8,7 @@ import space.cubicworld.core.command.AbstractCoreCommand;
 import space.cubicworld.core.command.CoreCommandAnnotation;
 import space.cubicworld.core.command.VelocityCoreCommandSource;
 import space.cubicworld.core.message.CoreMessage;
+import space.cubicworld.core.util.ImmutablePair;
 import space.cubicworld.core.util.MessageUtils;
 
 import java.util.Collections;
@@ -37,28 +38,41 @@ public class TeamSettingsCommand extends AbstractCoreCommand<VelocityCoreCommand
         }
         plugin.getDatabase()
                 .fetchTeam(teamName)
-                .flatMap(team -> {
-                    boolean updated = false;
-                    Mono<? extends Component> message = switch (args.next().toLowerCase(Locale.ROOT)) {
-                        case "description" -> {
-                            updated = true;
-                            team.setDescription(MessageUtils.buildMessage(args));
-                            yield CoreMessage.teamSettingsDescriptionUpdated(team);
+                .flatMap(team -> switch (args.next().toLowerCase(Locale.ROOT)) {
+                    case "description" -> {
+                        team.setDescription(MessageUtils.buildMessage(args));
+                        yield plugin.getDatabase().update(team).then(CoreMessage.teamSettingsDescriptionUpdated(team));
+                    }
+                    case "hide" -> {
+                        String nextArg = args.hasNext() ?
+                                args.next().toLowerCase(Locale.ROOT) : null;
+                        if (nextArg == null || (!nextArg.equals("true") && !nextArg.equals("false"))) {
+                            yield Mono.just(CoreMessage.teamSettingsHideBad());
                         }
-                        case "hide" -> {
-                            updated = true;
-                            String nextArg = args.hasNext() ?
-                                    args.next().toLowerCase(Locale.ROOT) : null;
-                            if (nextArg == null || (!nextArg.equals("true") && !nextArg.equals("false"))) {
-                                yield Mono.just(CoreMessage.teamSettingsHideBad());
-                            }
-                            boolean value = nextArg.equals("true");
-                            team.setHide(value);
-                            yield CoreMessage.teamSettingsHideUpdated(team, value);
+                        boolean value = nextArg.equals("true");
+                        team.setHide(value);
+                        yield plugin.getDatabase().update(team).then(CoreMessage.teamSettingsHideUpdated(team, value));
+                    }
+                    case "prefix" -> {
+                        if (!team.isVerified()) {
+                            yield Mono.just(CoreMessage.teamSettingsPrefixNotVerified());
                         }
-                        default -> Mono.just(CoreMessage.teamProvideSettingsValueType());
-                    };
-                    return updated ? plugin.getDatabase().update(team).then(message) : message;
+                        String nextArg = args.hasNext() ?
+                                args.next().toLowerCase(Locale.ROOT) : null;
+                        if (nextArg == null || nextArg.length() > 6) {
+                            yield Mono.just(CoreMessage.teamSettingsPrefixBad());
+                        }
+                        yield plugin.getDatabase()
+                                .fetchTeamByPrefix(nextArg)
+                                .hasElement()
+                                .flatMap(exists -> {
+                                    if (exists) return Mono.just(CoreMessage.teamSettingsPrefixExist());
+                                    team.setPrefix(nextArg);
+                                    return plugin.getDatabase().update(team)
+                                            .then(CoreMessage.teamSettingsPrefixUpdated(team, nextArg));
+                                });
+                    }
+                    default -> Mono.just(CoreMessage.teamProvideSettingsValueType());
                 })
                 .defaultIfEmpty(CoreMessage.teamNotExist(teamName))
                 .doOnNext(source::sendMessage)
@@ -77,7 +91,7 @@ public class TeamSettingsCommand extends AbstractCoreCommand<VelocityCoreCommand
         }
         args.next();
         if (!args.hasNext()) {
-            return List.of("description", "hide");
+            return List.of("description", "hide", "prefix");
         }
         if (args.next().equalsIgnoreCase("hide")) {
             return List.of("true", "false");

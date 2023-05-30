@@ -58,6 +58,7 @@ public class TeamMessageAliasCommand extends AbstractCoreCommand<VelocityCoreCom
                                     return Mono.empty();
                                 })
                         )
+                        .switchIfEmpty(Mono.just(CoreMessage.selectTeamNeed()))
                 )
                 .doOnNext(source::sendMessage)
                 .doOnError(this.errorLog(plugin.getLogger()))

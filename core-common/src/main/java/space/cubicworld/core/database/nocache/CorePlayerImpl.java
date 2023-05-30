@@ -8,7 +8,6 @@ import reactor.core.publisher.Mono;
 import space.cubicworld.core.color.CoreColor;
 import space.cubicworld.core.database.*;
 import space.cubicworld.core.json.CoreLightPlayer;
-import space.cubicworld.core.json.CoreLightPlayerImpl;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,18 +21,18 @@ class CorePlayerImpl implements CorePlayer {
     private String name;
     private int reputation;
     private CoreColor globalColor;
-    private @Nullable Integer selectedTeamId;
+    private int selectedTeamId;
     private int inactiveBoosts;
     private @Nullable Long discordId;
 
     @Override
     public Mono<? extends CoreTeam> getSelectedTeam() {
-        return selectedTeamId == null ? Mono.empty() : database.fetchTeam(selectedTeamId);
+        return selectedTeamId == 0 ? Mono.empty() : database.fetchTeam(selectedTeamId);
     }
 
     @Override
     public void setSelectedTeam(@Nullable CoreTeam team) {
-        selectedTeamId = team == null ? null : team.getId();
+        selectedTeamId = team == null ? 0 : team.getId();
     }
 
     @Override
@@ -66,7 +65,7 @@ class CorePlayerImpl implements CorePlayer {
         return database.getResolver().resolve(this, globalColor)
                 .map(Optional::of).defaultIfEmpty(Optional.empty())
                 .flatMap(resolvedColor -> getSelectedTeam()
-                        .map(CoreTeam::getName)
+                        .map(CoreTeam::getPrefix)
                         .map(Optional::of).defaultIfEmpty(Optional.empty())
                         .map(team -> new CoreLightPlayerData(id, name, resolvedColor.orElse(null), team.orElse(null)))
                 );

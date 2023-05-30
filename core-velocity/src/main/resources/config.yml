@@ -16,3 +16,6 @@ premium-permission: 'group.premium'
 
 premium:
   custom-color: true
+
+discord:
+  token: ''

@@ -36,7 +36,7 @@ public class BoostUseCommand extends AbstractCoreCommand<VelocityCoreCommandSour
             source.sendMessage(CoreMessage.boostNotEdit());
             return;
         }
-        Long id = Long.parseLong(args.next());
+        long id = Long.parseLong(args.next());
         if (!args.hasNext()) {
             source.sendMessage(CoreMessage.boostNotEdit());
             return;

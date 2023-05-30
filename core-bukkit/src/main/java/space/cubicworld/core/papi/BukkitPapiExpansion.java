@@ -35,7 +35,7 @@ public class BukkitPapiExpansion extends PlaceholderExpansion {
         CoreLightPlayer corePlayer = plugin.getCorePlayers().get(player.getUniqueId());
         if (corePlayer == null) return null;
         if (params.equalsIgnoreCase("selected_team")) {
-            return corePlayer.getSelectedTeamName();
+            return corePlayer.getSelectedTeamPrefix();
         }
         return null;
     }

@@ -1,5 +1,7 @@
 dependencies {
     implementation 'com.google.guava:guava:31.1-jre'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.3'
+    implementation 'com.electronwill.night-config:core:3.6.6'
+    implementation 'com.discord4j:discord4j-core:3.2.3'
     compileOnly 'org.slf4j:slf4j-api:1.7.36'
 }
