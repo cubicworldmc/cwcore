@@ -17,7 +17,11 @@ import space.cubicworld.core.database.migration.Migration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class CoreNoCacheDatabase implements CoreDatabase {
 
@@ -41,7 +45,7 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                         .option(ConnectionFactoryOptions.USER, plugin.getConfig().get("mysql.username"))
                         .option(ConnectionFactoryOptions.PASSWORD, plugin.getConfig().get("mysql.password"))
                         .option(ConnectionFactoryOptions.HOST, host.length == 0 ? "localhost" : host[0])
-                        .option(ConnectionFactoryOptions.PORT, host.length == 1 ? 3306 : Integer.parseInt(host[1]))
+                        .option(ConnectionFactoryOptions.PORT, host.length <= 1 ? 3306 : Integer.parseInt(host[1]))
                         .option(ConnectionFactoryOptions.DATABASE, plugin.getConfig().get("mysql.database"))
                         .option(ConnectionFactoryOptions.SSL, plugin.getConfig().get("mysql.ssl"))
                         .build()
@@ -218,6 +222,61 @@ public class CoreNoCacheDatabase implements CoreDatabase {
     }
 
     @Override
+    public Mono<? extends CoreList> fetchList(int id) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> parseLists(
+                    Flux.from(connection
+                            .createStatement("SELECT * FROM lists WHERE id = ?")
+                            .bind(0, id)
+                            .execute()
+                    )
+                ).singleOrEmpty(),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Mono<? extends CoreList> fetchList(String name) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> parseLists(
+                        Flux.from(connection
+                                .createStatement("SELECT * FROM lists WHERE name = ?")
+                                .bind(0, name)
+                                .execute()
+                        )
+                ).singleOrEmpty(),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Flux<? extends CoreList> fetchLists() {
+        return Flux.usingWhen(
+                getConnection(),
+                connection -> parseLists(
+                        Flux.from(connection
+                                .createStatement("SELECT * FROM lists")
+                                .execute()
+                        )
+                ),
+                Connection::close
+        );
+    }
+
+    private Flux<? extends CoreList> parseLists(Flux<? extends Result> flux) {
+        return flux.flatMap(result -> result.map(this::parseList));
+    }
+
+    private CoreList parseList(Row row, RowMetadata metadata) {
+        return CoreListImpl.builder()
+                .id(row.get(0, Integer.class))
+                .name(row.get(1, String.class))
+                .build();
+    }
+
+    @Override
     public Mono<? extends CorePTRelation> fetchPTRelation(UUID player, int team) {
         return Mono.usingWhen(
                 getConnection(),
@@ -244,6 +303,62 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                                 .value(CorePTRelation.Value.NONE)
                                 .build()
                         ))),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Mono<? extends CorePLRelation> fetchPLRelation(UUID player, int list) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> Flux.from(connection
+                                .createStatement("SELECT id, relation FROM list_player_relations WHERE player_uuid = ? AND list_id = ?")
+                                .bind(0, player.toString())
+                                .bind(1, list)
+                                .execute()
+                        )
+                        .flatMap(result -> result.map((row, metadata) -> CorePLRelationImpl
+                                .builder()
+                                .database(this)
+                                .listId(list)
+                                .playerId(player)
+                                .id(row.get(0, Long.class))
+                                .value(CorePLRelation.Value.valueOf(row.get(1, String.class)))
+                                .build()
+                        ))
+                        .singleOrEmpty()
+                        .switchIfEmpty(Mono.defer(() -> Mono.just(CorePLRelationImpl
+                                .builder()
+                                .database(this)
+                                .listId(list)
+                                .playerId(player)
+                                .id(null)
+                                .value(CorePLRelation.Value.NONE)
+                                .build()
+                        ))),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Flux<? extends CorePLRelation> fetchPLAcceptedRelations(UUID player) {
+        return Flux.usingWhen(
+                getConnection(),
+                connection -> Flux.from(connection
+                                .createStatement("SELECT id, list_id FROM list_player_relations WHERE player_uuid = ? AND relation = \"ACCEPTED\"")
+                                .bind(0, player.toString())
+                                .execute()
+                        )
+                        .flatMap(result -> result.map((row, _) ->
+                                CorePLRelationImpl
+                                        .builder()
+                                        .database(this)
+                                        .id(row.get(0, Long.class))
+                                        .listId(row.get(1, Integer.class))
+                                        .playerId(player)
+                                        .value(CorePLRelation.Value.ACCEPTED)
+                                        .build()
+                        )),
                 Connection::close
         );
     }
@@ -408,6 +523,34 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                                 .execute()
                         )
                 ),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Flux<? extends CorePLRelation> fetchAllPendingPLRelations(long last, long upto) {
+        return Flux.usingWhen(
+                getConnection(),
+                connection -> Flux
+                        .from(connection
+                                .createStatement("""
+                                        SELECT id, player_uuid, list_id FROM list_player_relations
+                                        WHERE id > ? AND relation = \"PENDING\" AND id <= ?
+                                        """)
+                                .bind(0, last)
+                                .bind(1, upto)
+                                .execute()
+                        )
+                        .flatMap(result -> result
+                                .map((row, meta) -> CorePLRelationImpl
+                                        .builder()
+                                        .id(row.get(0, Long.class))
+                                        .playerId(UUID.fromString(row.get(1, String.class)))
+                                        .listId(row.get(2, Integer.class))
+                                        .value(CorePLRelation.Value.PENDING)
+                                        .build()
+                                )
+                        ),
                 Connection::close
         );
     }
@@ -661,6 +804,44 @@ public class CoreNoCacheDatabase implements CoreDatabase {
     }
 
     @Override
+    public Mono<Void> synchronize(Collection<? extends String> teams) {
+        Function<Statement, Statement> batch = statement -> {
+            for (String team : teams) {
+                statement = statement.bind(0, team).add();
+            }
+            return statement;
+        };
+        Function<Statement, Statement> bindAll = statement -> {
+            int i = 0;
+            for (String team : teams) {
+                statement = statement.bind(i++, team);
+            }
+            return statement;
+        };
+        return Mono.usingWhen(
+               getConnection(),
+               connection -> Mono.from(connection.beginTransaction())
+                       .then(Mono.from(bindAll.apply(connection
+                               .createStatement("DELETE FROM lists WHERE %s".formatted(
+                                       Stream.generate(() -> "name != ?")
+                                               .limit(teams.size())
+                                               .collect(Collectors.joining(" OR "))
+                               )))
+                               .execute()
+                       ))
+                       .then(Mono.from(
+                               batch.apply(connection
+                                   .createStatement("INSERT IGNORE INTO lists(name) VALUES (?)")
+                               )
+                               .execute()
+                       ))
+                       .delayUntil(it -> connection.commitTransaction())
+                       .then(),
+               Connection::close
+        );
+    }
+
+    @Override
     public Mono<Void> update(CorePlayer player) {
         return Mono.usingWhen(
                 getConnection(),
@@ -722,6 +903,28 @@ public class CoreNoCacheDatabase implements CoreDatabase {
                                                 """)
                                         .bind(0, relation.getPlayerId().toString())
                                         .bind(1, relation.getTeamId())
+                                        .bind("relation", relation.getValue().toString())
+                        ).execute()
+                ).then(),
+                Connection::close
+        );
+    }
+
+    @Override
+    public Mono<Void> update(CorePLRelation relation) {
+        return Mono.usingWhen(
+                getConnection(),
+                connection -> Mono.fromDirect(
+                        (relation.getValue() == CorePLRelation.Value.NONE ?
+                                connection.createStatement("DELETE FROM list_player_relations WHERE player_uuid = ? AND list_id = ?")
+                                        .bind(0, relation.getPlayerId().toString())
+                                        .bind(1, relation.getListId()) :
+                                connection.createStatement("""
+                                                INSERT INTO list_player_relations (player_uuid, list_id, relation) VALUES (?, ?, ?relation)
+                                                ON DUPLICATE KEY UPDATE relation = ?relation
+                                                """)
+                                        .bind(0, relation.getPlayerId().toString())
+                                        .bind(1, relation.getListId())
                                         .bind("relation", relation.getValue().toString())
                         ).execute()
                 ).then(),

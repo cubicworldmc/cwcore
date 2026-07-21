@@ -19,6 +19,7 @@ import space.cubicworld.core.command.VelocityCoreCommand;
 import space.cubicworld.core.command.admin.AdminCommand;
 import space.cubicworld.core.command.boost.BoostCommand;
 import space.cubicworld.core.command.color.ColorCommand;
+import space.cubicworld.core.command.list.ListCommand;
 import space.cubicworld.core.command.profile.ProfileCommand;
 import space.cubicworld.core.command.reputation.ReputationCommand;
 import space.cubicworld.core.command.team.TeamCommand;
@@ -26,6 +27,7 @@ import space.cubicworld.core.command.team.TeamMessageAliasCommand;
 import space.cubicworld.core.command.top.TopCommand;
 import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.database.CorePlayer;
+import space.cubicworld.core.list.PlayerListRelationsHandler;
 import space.cubicworld.core.listener.*;
 import space.cubicworld.core.message.CoreMessage;
 import space.cubicworld.core.scheduler.BoostPremiumScheduler;
@@ -62,7 +64,7 @@ public class VelocityPlugin {
         Class.forName("com.electronwill.nightconfig.yaml.YamlFormat");
         this.server = server;
         this.logger = logger;
-        CoreMessage.register(getClass().getClassLoader(), logger);
+        CoreMessage.register(getClass().getClassLoader(), dataDirectory, logger);
         dataDirectory.toFile().mkdirs();
         File configFile = dataDirectory.resolve("config.yml").toFile();
         if (!configFile.exists()) {
@@ -74,7 +76,7 @@ public class VelocityPlugin {
                 int length;
                 while (true) {
                     length = resourcesConfigIs.read(buffer);
-                    if (length == 0) break;
+                    if (length <= 0) break;
                     configOs.write(buffer, 0, length);
                 }
                 configOs.flush();
@@ -93,7 +95,8 @@ public class VelocityPlugin {
                         getClass().getClassLoader(),
                         new VelocityCoreResolver(this),
                         config,
-                        logger
+                        logger,
+                        dataDirectory
                 )
         );
     }
@@ -108,6 +111,7 @@ public class VelocityPlugin {
         new VelocityCoreCommand(new ProfileCommand(this)).register(this);
         new VelocityCoreCommand(new TeamMessageAliasCommand(this)).register(this);
         new VelocityCoreCommand(new TopCommand(this)).register(this);
+        new VelocityCoreCommand(new ListCommand(this)).register(this);
         server.getEventManager().register(this, new TeamInvitationNotification(this));
         server.getEventManager().register(this, new VelocityJoinListener(this));
         server.getEventManager().register(this, new VelocityRealJoin(this));
@@ -115,11 +119,12 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new BoostPremiumScheduler(this));
         server.getEventManager().register(this, new VelocityPlayerUpdater(this));
         server.getEventManager().register(this, new VelocityJoinQuitMessagesListener(this));
+        server.getEventManager().register(this, new PlayerListRelationsHandler(this));
     }
 
     @Subscribe
     public void shutdown(ProxyShutdownEvent event) throws Exception {
-        getDatabase().close();
+        core.close();
     }
 
     public VelocityCommandHelper commandHelper() {

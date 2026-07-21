@@ -17,5 +17,16 @@ premium-permission: 'group.premium'
 premium:
   custom-color: true
 
-discord:
-  token: ''
+http:
+  port: 8080
+  key-file: key.pem
+  cert-file: cert.pem
+  client-cert-file: clcert.pem
+
+lists:
+  vanilla:
+    required-to-join: ["vanilla"]
+    acceptance:
+      kind: lc
+      url: https://google.com
+      key-file: vanilla.key

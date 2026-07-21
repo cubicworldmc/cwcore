@@ -1,5 +1,6 @@
 package space.cubicworld.core.message;
 
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.key.Key;
@@ -11,7 +12,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.translation.GlobalTranslator;
-import net.kyori.adventure.translation.TranslationRegistry;
+import net.kyori.adventure.translation.TranslationStore;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,11 +22,11 @@ import space.cubicworld.core.database.*;
 import space.cubicworld.core.json.CoreLightPlayer;
 import space.cubicworld.core.util.ImmutablePair;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.text.DateFormat;
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -43,22 +44,50 @@ public class CoreMessage {
     public final TextColor CLICKABLE_COLOR = NamedTextColor.GOLD;
     public final TextColor INACTIVE_COLOR = NamedTextColor.GRAY;
 
-    public void register(ClassLoader classLoader, Logger logger) {
-        TranslationRegistry registry = TranslationRegistry.create(Key.key("cwcore", "main"));
+    @RequiredArgsConstructor
+    class JoinedResourceBundle extends ListResourceBundle {
+        private final Properties first;
+        private final Properties second;
+
+        @Override
+        protected Object[][] getContents() {
+            Object[][] result = new Object[first.size() + second.size()][2];
+            int i = 0;
+            for (Properties properties : new Properties[]{first, second}) {
+                for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+                    result[i][0] = entry.getKey();
+                    result[i][1] = entry.getValue();
+                    i++;
+                }
+            }
+            return result;
+        }
+    }
+
+    private Properties loadPropertiesAndCloseIS(InputStream is) throws IOException {
+        Properties result = new Properties();
+        if (is == null) return result;
+        Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
+        result.load(reader);
+        reader.close();
+        is.close();
+        return result;
+    }
+
+    public void register(ClassLoader classLoader, Path dataDirectory, Logger logger) {
+        TranslationStore.StringBased<MessageFormat> registry = TranslationStore.messageFormat(Key.key("cwcore", "main"));
         registry.defaultLocale(Locale.ENGLISH);
         for (Locale translation : new Locale[]{Locale.ENGLISH, Locale.forLanguageTag("ru")}) {
-            try (InputStream translationIs = classLoader.getResourceAsStream(
-                    "translation/%s.properties".formatted(translation.getLanguage())
-            )) {
-                if (translationIs == null) {
-                    logger.warn("Failed to find {} translation", translation.getLanguage());
-                    continue;
+            try {
+                String file = "translation/%s.properties".formatted(translation.getLanguage());
+                Properties first = loadPropertiesAndCloseIS(classLoader.getResourceAsStream(file));
+                Properties second = new Properties();
+                File secondFile = dataDirectory.resolve(file).toFile();
+                if (secondFile.exists()) {
+                    second = loadPropertiesAndCloseIS(new FileInputStream(secondFile));
                 }
-                registry.registerAll(
-                        translation,
-                        new PropertyResourceBundle(new InputStreamReader(translationIs, StandardCharsets.UTF_8)),
-                        false
-                );
+                ResourceBundle bundle = new JoinedResourceBundle(first, second);
+                registry.registerAll(translation, bundle,false);
             } catch (IOException e) {
                 logger.warn("Failed to load {} translation: ", translation.getLanguage(), e);
             }
@@ -109,13 +138,13 @@ public class CoreMessage {
 
     public Component playerNotExist(String playerName) {
         return translatable("cwcore.player.exist.not")
-                .args(text(playerName).color(MENTION_COLOR))
+                .arguments(text(playerName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
     public Component teamNotExist(String teamName) {
         return translatable("cwcore.team.exist.not")
-                .args(text(teamName).color(MENTION_COLOR))
+                .arguments(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
@@ -144,7 +173,7 @@ public class CoreMessage {
     public Mono<? extends Component> playerReputation(CorePlayer player) {
         return player.asLight()
                 .map(lightPlayer -> translatable("cwcore.reputation.see")
-                        .args(
+                        .arguments(
                                 playerMention(lightPlayer),
                                 text(Integer.toString(player.getReputation())).color(MENTION_COLOR)
                         )
@@ -162,7 +191,7 @@ public class CoreMessage {
                                         text(team.getDescription()).append(newline())
                                 )
                                 .append(translatable("cwcore.team.about.owner")
-                                        .args(playerMention(lightPlayer))
+                                        .arguments(playerMention(lightPlayer))
                                 )
                         ))
                         .color(MENTION_COLOR)
@@ -171,7 +200,7 @@ public class CoreMessage {
 
     public Component teamAlreadyExist(String teamName) {
         return translatable("cwcore.team.already.exist")
-                .args(text(teamName).color(MENTION_COLOR))
+                .arguments(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
@@ -179,7 +208,7 @@ public class CoreMessage {
         return player.asLight()
                 .flatMap(lightPlayer -> teamMention(team)
                         .map(teamMentionComponent -> translatable("cwcore.team.already.in")
-                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .arguments(playerMention(lightPlayer), teamMentionComponent)
                                 .color(FAIL_COLOR)
                         )
                 );
@@ -188,7 +217,7 @@ public class CoreMessage {
     public Mono<? extends Component> teamCreated(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.created")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
@@ -197,7 +226,7 @@ public class CoreMessage {
         return invited.asLight()
                 .flatMap(lightInvited -> teamMention(team)
                         .map(teamMentionComponent -> translatable("cwcore.team.already.invited")
-                                .args(playerMention(lightInvited), teamMentionComponent)
+                                .arguments(playerMention(lightInvited), teamMentionComponent)
                                 .color(FAIL_COLOR)
                         )
                 );
@@ -207,7 +236,7 @@ public class CoreMessage {
         return invited.asLight()
                 .flatMap(lightInvited -> teamMention(team)
                         .map(teamMentionComponent -> translatable("cwcore.team.invited")
-                                .args(playerMention(lightInvited), teamMentionComponent)
+                                .arguments(playerMention(lightInvited), teamMentionComponent)
                                 .color(SUCCESS_COLOR)
                         )
                 );
@@ -218,7 +247,7 @@ public class CoreMessage {
                 .flatMap(lightInviter -> teamMention(team)
                         .map(teamMentionComponent -> empty()
                                 .append(translatable("cwcore.team.invite")
-                                        .args(playerMention(lightInviter), teamMentionComponent)
+                                        .arguments(playerMention(lightInviter), teamMentionComponent)
                                         .color(INFORMATION_COLOR)
                                 )
                                 .append(space())
@@ -233,7 +262,7 @@ public class CoreMessage {
     public Mono<? extends Component> notInvited(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.invited.not")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(FAIL_COLOR)
                 );
     }
@@ -241,7 +270,7 @@ public class CoreMessage {
     public Mono<? extends Component> inviteAccepted(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.invite.accept")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
@@ -249,7 +278,7 @@ public class CoreMessage {
     public Mono<? extends Component> oneTeamNotVerified(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.verified.not")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(FAIL_COLOR)
                 );
     }
@@ -257,7 +286,7 @@ public class CoreMessage {
     public Mono<? extends Component> teamAlreadyVerified(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.verified.already")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(FAIL_COLOR)
                 );
     }
@@ -265,7 +294,7 @@ public class CoreMessage {
     public Mono<? extends Component> teamVerifiedSet(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.verified.set")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
@@ -275,7 +304,7 @@ public class CoreMessage {
         return teamMention(team)
                 .map(teamMentionComponent -> empty()
                         .append(translatable("cwcore.team.about.name")
-                                .args(teamMentionComponent.append(
+                                .arguments(teamMentionComponent.append(
                                         team.isVerified() ? text(" ✔") : empty()
                                 ))
                         )
@@ -283,7 +312,7 @@ public class CoreMessage {
                         .append(team.getDescription() == null ?
                                 empty() :
                                 translatable("cwcore.team.about.description")
-                                        .args(text(team.getDescription()))
+                                        .arguments(text(team.getDescription()))
                                         .append(newline())
                         )
                 )
@@ -291,7 +320,7 @@ public class CoreMessage {
                         .flatMap(CorePlayer::asLight)
                         .map(lightOwner -> result
                                 .append(translatable("cwcore.team.about.owner")
-                                        .args(playerMention(lightOwner))
+                                        .arguments(playerMention(lightOwner))
                                 )
                                 .append(newline())
                         )
@@ -307,7 +336,7 @@ public class CoreMessage {
                                 .flatMap(membersCount -> team.getMaxMembers()
                                         .map(maxMembers -> result.append(
                                                 translatable("cwcore.team.about.members")
-                                                        .args(
+                                                        .arguments(
                                                                 membersMessage,
                                                                 text(membersCount).color(MENTION_COLOR),
                                                                 text(maxMembers).color(MENTION_COLOR)
@@ -320,21 +349,21 @@ public class CoreMessage {
 
     public Component teamLeaveCanNot(String teamName) {
         return translatable("cwcore.team.leave.not")
-                .args(text(teamName).color(MENTION_COLOR))
+                .arguments(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
     public Mono<? extends Component> teamLeaved(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.leave")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
 
     public Component teamDeleteCanNot(String teamName) {
         return translatable("cwcore.team.delete.not")
-                .args(text(teamName).color(MENTION_COLOR))
+                .arguments(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 
@@ -342,7 +371,7 @@ public class CoreMessage {
         return teamMention(team)
                 .map(teamMentionComponent -> empty()
                         .append(translatable("cwcore.team.delete.confirm")
-                                .args(teamMentionComponent)
+                                .arguments(teamMentionComponent)
                                 .color(INFORMATION_COLOR)
                         )
                         .append(space())
@@ -358,14 +387,14 @@ public class CoreMessage {
     public Mono<? extends Component> teamDeleted(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.delete")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
 
     public Component teamInviteJoinNotification(long count) {
         return translatable("cwcore.team.invite.join.notification")
-                .args(
+                .arguments(
                         text(count).color(MENTION_COLOR),
                         clickable(text("/team invites"))
                                 .clickEvent(ClickEvent.runCommand("/team invites"))
@@ -403,7 +432,7 @@ public class CoreMessage {
                             return empty()
                                     .append(
                                             translatable("cwcore.team.invites.header")
-                                                    .args(
+                                                    .arguments(
                                                             text(page + 1).color(MENTION_COLOR),
                                                             text(totalPages).color(MENTION_COLOR)
                                                     )
@@ -430,7 +459,7 @@ public class CoreMessage {
         return player.asLight()
                 .flatMap(lightPlayer -> teamMention(team)
                         .map(teamMentionComponent -> translatable("cwcore.team.member.not")
-                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .arguments(playerMention(lightPlayer), teamMentionComponent)
                                 .color(FAIL_COLOR)
                         )
                 );
@@ -440,7 +469,7 @@ public class CoreMessage {
         return player.asLight()
                 .flatMap(lightPlayer -> teamMention(team)
                         .map(teamMentionComponent -> translatable("cwcore.team.kick.success")
-                                .args(playerMention(lightPlayer), teamMentionComponent)
+                                .arguments(playerMention(lightPlayer), teamMentionComponent)
                                 .color(SUCCESS_COLOR)
                         )
                 );
@@ -453,9 +482,8 @@ public class CoreMessage {
 
     public Component message(CoreLightPlayer sender, Component message) {
         return empty()
-                .append(playerMention(sender)
-                        .color(NamedTextColor.WHITE)
-                        .append(space())
+                .append(playerMention(sender).color(NamedTextColor.WHITE))
+                .append(space()
                         .append(text(">")
                                 .decorate(TextDecoration.BOLD)
                                 .color(orDefault(sender.getResolvedGlobalColor(), INACTIVE_COLOR))
@@ -480,7 +508,7 @@ public class CoreMessage {
 
     public Component teamProvideSettingsValueType() {
         return translatable("cwcore.team.settings.value.type.provide")
-                .args(join(
+                .arguments(join(
                         JoinConfiguration.commas(true),
                         List.of(
                                 text("description").color(MENTION_COLOR),
@@ -491,7 +519,7 @@ public class CoreMessage {
 
     public Component teamSettingsHideBad() {
         return translatable("cwcore.team.settings.value.hide.bad")
-                .args(
+                .arguments(
                         text("true").color(MENTION_COLOR),
                         text("false").color(MENTION_COLOR)
                 );
@@ -500,20 +528,20 @@ public class CoreMessage {
     public Mono<? extends Component> teamSettingsHideUpdated(CoreTeam team, boolean value) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.settings.value.hide.success." + value)
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
 
     public Component teamSettingsDescriptionBad(int maxLength) {
         return translatable("cwcore.team.settings.value.description.bad")
-                .args(text(maxLength).color(MENTION_COLOR));
+                .arguments(text(maxLength).color(MENTION_COLOR));
     }
 
     public Mono<? extends Component> teamSettingsDescriptionUpdated(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.settings.value.description.success")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
@@ -573,7 +601,7 @@ public class CoreMessage {
     public Mono<? extends Component> readSuccess(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.read.success")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                 );
     }
 
@@ -602,7 +630,7 @@ public class CoreMessage {
                             .collectList()
                             .map(teams -> empty()
                                     .append(translatable("cwcore.team.verifies.header")
-                                            .args(
+                                            .arguments(
                                                     text(page + 1).color(MENTION_COLOR),
                                                     text(totalPages).color(MENTION_COLOR)
                                             )
@@ -626,7 +654,7 @@ public class CoreMessage {
     public Mono<? extends Component> playersLimitIncreased(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.invite.accept.limit.increased")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(FAIL_COLOR)
                 );
     }
@@ -638,7 +666,7 @@ public class CoreMessage {
                 .defaultIfEmpty(translatable("cwcore.none").color(MENTION_COLOR))
                 .map(teamComponent -> empty()
                         .append(translatable("cwcore.boost.info.boost")
-                                .args(text(boost.getId()).color(MENTION_COLOR))
+                                .arguments(text(boost.getId()).color(MENTION_COLOR))
                                 .color(INFORMATION_COLOR)
                         )
                         .append(space())
@@ -647,17 +675,17 @@ public class CoreMessage {
                         ))
                         .append(newline())
                         .append(translatable("cwcore.boost.info.boost.before")
-                                .args(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
+                                .arguments(text(DATE_FORMAT.format(new Date(boost.getEnd()))))
                                 .color(INFORMATION_COLOR)
                         )
                         .append(newline())
                         .append(translatable("cwcore.boost.info.boost.target")
-                                .args(teamComponent)
+                                .arguments(teamComponent)
                                 .color(INFORMATION_COLOR)
                         )
                         .append(newline())
                         .append(translatable("cwcore.boost.info.use")
-                                .args(empty()
+                                .arguments(empty()
                                         .append(clickable(translatable("cwcore.boost.info.use.team")
                                                 .clickEvent(ClickEvent.suggestCommand("/boost use %s team ".formatted(boost.getId())))
                                         ))
@@ -685,7 +713,7 @@ public class CoreMessage {
                                     boolean previous = page != 0;
                                     return empty()
                                             .append(translatable("cwcore.boost.info.header")
-                                                    .args(
+                                                    .arguments(
                                                             playerMention(lightPlayer),
                                                             text(page + 1).color(MENTION_COLOR),
                                                             text(totalPages).color(MENTION_COLOR)
@@ -694,7 +722,7 @@ public class CoreMessage {
                                             )
                                             .append(newline())
                                             .append(translatable("cwcore.boost.info.inactive")
-                                                    .args(text(player.getInactiveBoosts())
+                                                    .arguments(text(player.getInactiveBoosts())
                                                             .color(MENTION_COLOR)
                                                     )
                                                     .color(INFORMATION_COLOR)
@@ -728,7 +756,7 @@ public class CoreMessage {
     public Mono<? extends Component> addedOneBoost(CorePlayer player) {
         return player.asLight()
                 .map(lightPlayer -> translatable("cwcore.boost.add.success")
-                        .args(playerMention(lightPlayer))
+                        .arguments(playerMention(lightPlayer))
                         .color(SUCCESS_COLOR)
                 );
     }
@@ -762,7 +790,7 @@ public class CoreMessage {
                 )
                 .append(space())
                 .append(translatable("multiplayer.player.joined")
-                        .args(playerMention(player, INACTIVE_COLOR))
+                        .arguments(playerMention(player, INACTIVE_COLOR))
                 );
     }
 
@@ -774,7 +802,7 @@ public class CoreMessage {
                 )
                 .append(space())
                 .append(translatable("multiplayer.player.left")
-                        .args(playerMention(player, INACTIVE_COLOR))
+                        .arguments(playerMention(player, INACTIVE_COLOR))
                 );
     }
 
@@ -788,15 +816,15 @@ public class CoreMessage {
                                 .map(teams -> empty()
                                         .color(INFORMATION_COLOR)
                                         .append(translatable("cwcore.profile.header")
-                                                .args(playerMention(lightPlayer))
+                                                .arguments(playerMention(lightPlayer))
                                         )
                                         .append(newline())
                                         .append(translatable("cwcore.profile.reputation")
-                                                .args(text(player.getReputation()).color(MENTION_COLOR))
+                                                .arguments(text(player.getReputation()).color(MENTION_COLOR))
                                         )
                                         .append(newline())
                                         .append(translatable("cwcore.profile.teams")
-                                                .args(teamsCount == 0 ?
+                                                .arguments(teamsCount == 0 ?
                                                         translatable("cwcore.none").color(MENTION_COLOR) :
                                                         simpleLimitedList(
                                                                 teams,
@@ -813,14 +841,14 @@ public class CoreMessage {
     public Mono<? extends Component> selectTeamSuccess(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.select.success")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(SUCCESS_COLOR)
                 );
     }
 
     public Component selectTeamNeed() {
         return translatable("cwcore.team.select.not")
-                .args(clickable(text("/team select")
+                .arguments(clickable(text("/team select")
                         .clickEvent(ClickEvent.suggestCommand("/team select "))
                 ))
                 .color(FAIL_COLOR);
@@ -829,7 +857,7 @@ public class CoreMessage {
     public Mono<? extends Component> teamNotMemberSelf(CoreTeam team) {
         return teamMention(team)
                 .map(teamMentionComponent -> translatable("cwcore.team.member.not.self")
-                        .args(teamMentionComponent)
+                        .arguments(teamMentionComponent)
                         .color(FAIL_COLOR)
                 );
     }
@@ -845,7 +873,7 @@ public class CoreMessage {
                         .flatMap(reputation -> teamMention(team)
                                 .map(teamMentionComponent -> listElement(
                                                 translatable("cwcore.top.reputation.element")
-                                                        .args(
+                                                        .arguments(
                                                                 teamMentionComponent,
                                                                 text(reputation).color(MENTION_COLOR)
                                                         )
@@ -867,7 +895,7 @@ public class CoreMessage {
                 .flatMap(player -> player.asLight()
                         .map(lightPlayer -> listElement(
                                 translatable("cwcore.top.reputation.element")
-                                        .args(
+                                        .arguments(
                                                 playerMention(lightPlayer),
                                                 text(player.getReputation())
                                         )
@@ -896,7 +924,7 @@ public class CoreMessage {
         return teamMention(team)
                 .map(teamMention -> translatable("cwcore.team.settings.value.prefix.success")
                         .color(SUCCESS_COLOR)
-                        .args(
+                        .arguments(
                                 teamMention,
                                 (prefix == null ? translatable("cwcore.none") : text(prefix)).color(MENTION_COLOR)
                         )
@@ -905,6 +933,39 @@ public class CoreMessage {
 
     public Component teamSettingsPrefixExist() {
         return translatable("cwcore.team.settings.value.prefix.verified.exist")
+                .color(FAIL_COLOR);
+    }
+
+    public Component listNotYetLoaded() {
+        return translatable("cwcore.list.loaded.false")
+                .color(FAIL_COLOR);
+    }
+
+    public Component listAcceptedRequiredToJoinServer(String list, String server) {
+        return translatable("cwcore.list.%s.server.required".formatted(list))
+                .arguments(translatable("cwcore.server.%s.name".formatted(server)).color(MENTION_COLOR))
+                .color(FAIL_COLOR);
+    }
+
+    public Component listLinkCodeAcceptanceInstructions(String list, String url, String code) {
+        return translatable("cwcore.list.%s.acceptance.lc".formatted(list))
+                .arguments(
+                        clickable(text(url)
+                                .clickEvent(ClickEvent.openUrl(url))),
+                        clickable(translatable("cwcore.list.code.copy")
+                                .clickEvent(ClickEvent.copyToClipboard(code)))
+                )
+                .color(INFORMATION_COLOR);
+    }
+
+    public Component provideListName() {
+        return translatable("cwcore.command.provide.list")
+                .color(FAIL_COLOR);
+    }
+
+    public Component listNotExist(String teamName) {
+        return translatable("cwcore.list.not.exist")
+                .arguments(text(teamName).color(MENTION_COLOR))
                 .color(FAIL_COLOR);
     }
 

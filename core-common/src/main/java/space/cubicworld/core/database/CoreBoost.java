@@ -19,7 +19,7 @@ public interface CoreBoost {
 
     void setEnd(long unixTime);
 
-    default boolean isEnd() {
+    default boolean isEnded() {
         return getEnd() < System.currentTimeMillis();
     }
 

@@ -1,6 +1,7 @@
 package space.cubicworld.core.color;
 
 import com.electronwill.nightconfig.core.AbstractConfig;
+import com.electronwill.nightconfig.core.Config;
 import net.kyori.adventure.text.format.TextColor;
 import space.cubicworld.core.CorePlugin;
 import space.cubicworld.core.database.CorePlayer;
@@ -15,10 +16,10 @@ public class CoreColorIndexContainer {
     private final List<ImmutablePair<ColorRule, TextColor>> colors = new ArrayList<>();
 
     public CoreColorIndexContainer(CorePlugin plugin) {
-        AbstractConfig colorsConfig = plugin.getConfig().get("colors");
+        Config colorsConfig = plugin.getConfig().get("colors");
         Map<String, String> colorsMap = new LinkedHashMap<>();
-        colorsConfig.valueMap().forEach((key, value) -> colorsMap.put(key, value.toString()));
-        colorsMap.forEach((key, value) -> {
+        colorsConfig.valueMap().forEach((key, val) -> colorsMap.put(key, val.toString()));
+        colorsMap.forEach((key, val) -> {
             String[] keyStatement = key.split(" ");
             ColorRule rule = switch (keyStatement[0].toLowerCase(Locale.ROOT)) {
                 case "reputation", "rep" -> {
@@ -27,7 +28,7 @@ public class CoreColorIndexContainer {
                 }
                 default -> throw new IllegalArgumentException("unknown type of value: " + keyStatement[0]);
             };
-            TextColor color = ColorUtils.fromLocalized(value);
+            TextColor color = ColorUtils.fromLocalized(val);
             colors.add(new ImmutablePair<>(rule, color));
         });
     }

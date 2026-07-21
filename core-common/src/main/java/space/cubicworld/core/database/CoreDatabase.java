@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
 import java.util.UUID;
 
 public interface CoreDatabase extends AutoCloseable {
@@ -27,7 +28,17 @@ public interface CoreDatabase extends AutoCloseable {
 
     Mono<Long> fetchTeamsCountByVerified(boolean verified);
 
+    Mono<? extends CoreList> fetchList(int id);
+
+    Mono<? extends CoreList> fetchList(String name);
+
+    Flux<? extends CoreList> fetchLists();
+
     Mono<? extends CorePTRelation> fetchPTRelation(UUID player, int team);
+
+    Mono<? extends CorePLRelation> fetchPLRelation(UUID player, int list);
+
+    Flux<? extends CorePLRelation> fetchPLAcceptedRelations(UUID player);
 
     Mono<? extends CoreBoost> fetchBoost(long id);
 
@@ -44,6 +55,8 @@ public interface CoreDatabase extends AutoCloseable {
     Flux<? extends CoreTeam> fetchPlayerPTRelations(UUID player, CorePTRelation.Value value, long count);
 
     Flux<? extends CoreTeam> fetchPlayerPTRelations(UUID player, CorePTRelation.Value value, long count, long skip);
+
+    Flux<? extends CorePLRelation> fetchAllPendingPLRelations(long last, long upto);
 
     Flux<? extends CoreBoost> fetchPlayerBoosts(UUID player, long count, long skip);
 
@@ -67,11 +80,15 @@ public interface CoreDatabase extends AutoCloseable {
 
     Mono<? extends CoreBoost> newBoost(UUID player);
 
+    Mono<Void> synchronize(Collection<? extends String> teams);
+
     Mono<Void> update(CorePlayer player);
 
     Mono<Void> update(CoreTeam team);
 
     Mono<Void> update(CorePTRelation relation);
+
+    Mono<Void> update(CorePLRelation relation);
 
     Mono<Void> update(CoreBoost boost);
 

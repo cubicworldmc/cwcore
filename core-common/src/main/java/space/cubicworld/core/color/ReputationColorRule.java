@@ -21,7 +21,7 @@ public class ReputationColorRule implements ColorRule {
     @Override
     public Component getMessage() {
         return Component.translatable("cwcore.color.rule.reputation")
-                .args(
+                .arguments(
                         Component.text(compare.toString())
                                 .decorate(TextDecoration.BOLD),
                         Component.text(value)
