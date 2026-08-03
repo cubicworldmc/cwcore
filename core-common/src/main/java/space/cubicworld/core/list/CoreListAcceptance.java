@@ -29,16 +29,10 @@ public interface CoreListAcceptance {
 
         @SneakyThrows
         private static Cipher getCipher() {
-            return Cipher.getInstance("AES/GCM/NoPadding");
+            return Cipher.getInstance("AES");
         }
 
         private static final SecureRandom rand = new SecureRandom();
-
-        private static GCMParameterSpec generateIV() {
-            byte[] iv = new byte[12];
-            rand.nextBytes(iv);
-            return new GCMParameterSpec(128, iv);
-        }
 
         private final String url;
         private final SecretKey key;
