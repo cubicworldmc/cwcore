@@ -49,7 +49,8 @@ public interface CoreListAcceptance {
                 try (InputStream is = new FileInputStream(file)) {
                     bytes = is.readAllBytes();
                 }
-                bytes = Base64.getDecoder().decode(bytes);
+                String str = new String(bytes).strip();
+                bytes = Base64.getDecoder().decode(str);
                 key = new SecretKeySpec(bytes, "AES");
             } catch (Exception e) {
                 throw new RuntimeException(e);
