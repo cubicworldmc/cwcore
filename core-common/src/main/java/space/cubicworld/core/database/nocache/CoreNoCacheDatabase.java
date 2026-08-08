@@ -38,14 +38,24 @@ public class CoreNoCacheDatabase implements CoreDatabase {
     public CoreNoCacheDatabase(CorePlugin plugin) {
         this.plugin = plugin;
         String[] host = plugin.getConfig().<String>get("mysql.host").split(":");
+
+        String unixSocket = plugin.getConfig().get("mysql.unix-socket");
+
+        ConnectionFactoryOptions.Builder builder = ConnectionFactoryOptions.builder();
+        if (unixSocket == null || unixSocket.isEmpty()) {
+            builder = builder
+                    .option(ConnectionFactoryOptions.PASSWORD, plugin.getConfig().get("mysql.password"))
+                    .option(ConnectionFactoryOptions.HOST, host.length == 0 ? "localhost" : host[0])
+                    .option(ConnectionFactoryOptions.PORT, host.length <= 1 ? 3306 : Integer.parseInt(host[1]));
+        } else {
+            builder = builder.option(Option.valueOf("unixSocket"), unixSocket);
+        }
+
         factory = ConnectionFactories.get(
-                ConnectionFactoryOptions.builder()
+                builder
                         .option(ConnectionFactoryOptions.DRIVER, "pool")
                         .option(ConnectionFactoryOptions.PROTOCOL, "mysql")
                         .option(ConnectionFactoryOptions.USER, plugin.getConfig().get("mysql.username"))
-                        .option(ConnectionFactoryOptions.PASSWORD, plugin.getConfig().get("mysql.password"))
-                        .option(ConnectionFactoryOptions.HOST, host.length == 0 ? "localhost" : host[0])
-                        .option(ConnectionFactoryOptions.PORT, host.length <= 1 ? 3306 : Integer.parseInt(host[1]))
                         .option(ConnectionFactoryOptions.DATABASE, plugin.getConfig().get("mysql.database"))
                         .option(ConnectionFactoryOptions.SSL, plugin.getConfig().get("mysql.ssl"))
                         .build()

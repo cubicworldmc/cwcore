@@ -1,5 +1,6 @@
 mysql:
   host: 'localhost:3306'
+  unix-socket: ''
   username: 'root'
   password: '1'
   database: 'cwcore'
