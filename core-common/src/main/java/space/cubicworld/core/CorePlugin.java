@@ -9,7 +9,6 @@ import space.cubicworld.core.color.CoreColorIndexContainer;
 import space.cubicworld.core.database.CoreDatabase;
 import space.cubicworld.core.database.CoreList;
 import space.cubicworld.core.database.nocache.CoreNoCacheDatabase;
-import space.cubicworld.core.http.CoreHttpServer;
 import space.cubicworld.core.list.CoreListContainer;
 
 import java.io.IOException;
@@ -22,24 +21,20 @@ public class CorePlugin {
     private final CoreDatabase database;
     private final CoreColorIndexContainer colorIndexContainer;
     private final CoreListContainer listContainer;
-    private final CoreHttpServer httpServer;
 
     @Delegate
     private final CoreBootstrap bootstrap;
 
     public CorePlugin(CoreBootstrap bootstrap) {
         this.bootstrap = bootstrap;
-        httpServer = new CoreHttpServer(this);
         database = new CoreNoCacheDatabase(this);
         listContainer = new CoreListContainer(this);
         colorIndexContainer = new CoreColorIndexContainer(this);
-        httpServer.bind();
     }
 
     @SneakyThrows
     public void close() {
         database.close();
-        httpServer.close();
     }
 
 }

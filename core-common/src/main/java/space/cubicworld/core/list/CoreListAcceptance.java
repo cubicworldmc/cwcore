@@ -32,8 +32,6 @@ public interface CoreListAcceptance {
             return Cipher.getInstance("AES");
         }
 
-        private static final SecureRandom rand = new SecureRandom();
-
         private final String url;
         private final SecretKey key;
 
@@ -41,17 +39,7 @@ public interface CoreListAcceptance {
             try {
                 getCipher();
                 url = plugin.getConfig().get("lists.%s.acceptance.url".formatted(list));
-                File file = plugin.getDirectory()
-                        .resolve(plugin.getConfig()
-                                .<String>get("lists.%s.acceptance.key-file".formatted(list)))
-                        .toFile();
-                byte[] bytes;
-                try (InputStream is = new FileInputStream(file)) {
-                    bytes = is.readAllBytes();
-                }
-                String str = new String(bytes).strip();
-                bytes = Base64.getDecoder().decode(str);
-                key = new SecretKeySpec(bytes, "AES");
+                key = plugin.getBootstrap().loadKey(plugin.getConfig().get("lists.%s.acceptance.key-file".formatted(list)), "AES");
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
