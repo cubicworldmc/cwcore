@@ -92,6 +92,7 @@ public class CoreListContainer {
             QUERY,
             ACCEPT,
             DECLINE,
+            MAKE_PENDING,
             ;
         }
         private final String time;
@@ -190,6 +191,9 @@ public class CoreListContainer {
                     case TCPMessage.C2SKind.DECLINE ->
                             updateRelation(playerUuid, list, CorePLRelation.Value.DECLINED)
                                     .then(Mono.just(derivedMessageBytes.apply("OK_DECLINED")));
+                    case TCPMessage.C2SKind.MAKE_PENDING ->
+                            updateRelation(playerUuid, list, CorePLRelation.Value.PENDING)
+                                    .then(Mono.just(derivedMessageBytes.apply("OK_MAKE_PENDING")));
                     case TCPMessage.C2SKind.QUERY ->
                             plugin.getDatabase().fetchPLRelation(playerUuid, list)
                                     .map(it -> derivedMessageBytes.apply(it.getValue().name()));
